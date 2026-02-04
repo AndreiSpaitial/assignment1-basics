@@ -35,7 +35,7 @@ Example: "'hello! こんにちは!'", and it fails because it doesn't properly h
 (c) Give a two byte sequence that does not decode to any Unicode character(s).
 "b'\xe3\x81'"
 
-These are just the first two bytes of "は", and they don't make sense without the third byt
+These are just the first two bytes of "は", and they don't make sense without the third byte
 
 
 
