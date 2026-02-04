@@ -1,6 +1,9 @@
 import regex as re
+import time
 from collections import defaultdict, Counter
 from itertools import pairwise
+
+from tqdm import tqdm
 
 from cs336_basics.pretokenization_example import find_chunk_boundaries
 
@@ -93,10 +96,17 @@ class BPETokenizer:
         return ret
 
     def train(self, file_name: str) -> None:
+        start_time = time.time()
         total_freqs = self._pretokenize(file_name)
+        end_time = time.time()
 
-        while total_freqs is not None and len(self.dictionary) < self.vocab_size:
-            total_freqs = self._merge(total_freqs)
+        print(f"Pre-tokenization done in {(end_time-start_time)}s")
+
+        i = 0
+        with tqdm(total=self.vocab_size) as pbar:
+            while total_freqs is not None and len(self.dictionary) < self.vocab_size:
+                total_freqs = self._merge(total_freqs)
+                pbar.update(1)
 
     def tokenize(self, document: str) -> list[bytes]:
         ret = self._str_to_bytes_tuple(document)
