@@ -34,6 +34,10 @@ class BPETokenizer:
         self.vocab_size = vocab_size
 
         self._token_pairs_cache = {}
+        self._pairs_freqs = []
+        self._pairs_freqs_lookup = {}
+        self._pairs_cache = {}
+        self._pretoken_freqs = {}
 
     def _str_to_bytes_tuple(self, input_str: str) -> tuple[bytes]:
         input_str_utf8 = input_str.encode("utf-8")
@@ -75,11 +79,7 @@ class BPETokenizer:
 
             return self._pretokenize_chunk(chunk)
 
-    def _pretokenize(self, file_name) -> tuple[
-            Counter[tuple[bytes], int], 
-            dict[tuple[bytes], Counter[tuple[bytes], int]]
-        ]:
-
+    def _pretokenize(self, file_name) -> None:
         processes = []
         q = multiprocessing.Queue()
 
@@ -108,7 +108,8 @@ class BPETokenizer:
                         continue
                     pairs[pretoken] = freq
 
-        return pretoken_freqs, pairs_cache
+        self._pretoken_freqs = pretoken_freqs
+        self._pairs_cache = pairs_cache
 
     def _merge_pretoken(self, pretoken: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
         i=0
@@ -138,16 +139,12 @@ class BPETokenizer:
         self._token_pairs_cache[pretoken] = pairs
         return pretoken, pairs
 
-    def _merge(
-            self,
-            pairs_freqs: list[tuple[int, tuple[bytes]]],
-            pairs_freqs_lookup,
-            pairs_cache: dict[tuple[bytes], Counter[tuple[bytes], int]],
-            pretoken_freqs: Counter[tuple[bytes], int],
-        ) -> tuple[
-            dict[tuple[bytes], Counter[tuple[bytes], int]],
-            Counter[tuple[bytes], int]
-        ]:
+    def _merge(self) -> bool:
+        
+        pairs_freqs = self._pairs_freqs
+        pairs_freqs_lookup = self._pairs_freqs_lookup
+        pairs_cache = self._pairs_cache
+        pretoken_freqs = self._pretoken_freqs
 
         max_pair, max_freq = None, None
         while pairs_freqs:
@@ -157,7 +154,7 @@ class BPETokenizer:
             max_pair, max_freq = pair, freq
             break
 
-        if max_pair is None: # no more merges possible, all pre-tokens are a single bytes object
+        if max_pair is None:  # no more merges possible, all pre-tokens are a single bytes object
             return False
 
         self.merges.append(max_pair)
@@ -219,20 +216,19 @@ class BPETokenizer:
 
     def train(self, file_name: str | os.PathLike) -> None:
         start_time = time.time()
-        pretoken_freqs, pairs_cache = self._pretokenize(file_name)
+        self._pretokenize(file_name)
         end_time = time.time()
 
         # print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
-        pairs_freqs: list[tuple[tuple[bytes], int]] = []
+        pairs_freqs: list[tuple[tuple[bytes], int]] = self._pairs_freqs
         pairs_freq_ct: Counter[tuple[bytes, bytes]] = Counter()
-        for pair, pretokens in pairs_cache.items():
+        for pair, pretokens in self._pairs_cache.items():
             for pretoken, pretoken_pair_freq in pretokens.items():
-                freq = pretoken_freqs[pretoken]
+                freq = self._pretoken_freqs[pretoken]
                 pairs_freq_ct[pair] += freq*pretoken_pair_freq
 
-        pairs_freqs = []
-        pairs_freqs_lookup = {}
+        pairs_freqs_lookup = self._pairs_freqs_lookup
 
         for tup,freq in pairs_freq_ct.items():
             entry = [freq, tup, True]
@@ -241,13 +237,12 @@ class BPETokenizer:
 
         heapq._heapify_max(pairs_freqs)
 
-
         i = 0
         found_pair = True
         start_time = time.time()
         with tqdm(total=self.vocab_size) as pbar:
             while found_pair and len(self.dictionary) < self.vocab_size:
-                found_pair = self._merge(pairs_freqs, pairs_freqs_lookup, pairs_cache, pretoken_freqs)
+                found_pair = self._merge()
 
                 # print(pairs_freqs)
                 # print("£££\n"*3)

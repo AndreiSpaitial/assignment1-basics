@@ -1166,33 +1166,33 @@ EXPECTED_STATES = [
 ]
 
 
-def _mock_merge(i_ptr, _old_merge, pairs_freqs, pair_freqs_lookup, pairs_cache, pretoken_freqs):
+def _mock_merge(i_ptr, _old_merge, bpe_tokenizer: BPETokenizer):
         i = i_ptr[0]
         before = EXPECTED_STATES[i]
 
         pairs_freqs_ct = Counter(
             {
-                tup: freq for freq, tup, pres in pairs_freqs if pres
+                tup: freq for freq, tup, pres in bpe_tokenizer._pairs_freqs if pres
             }
         )
 
         assert pairs_freqs_ct == before["pairs_freqs"]
-        assert pairs_cache == before["pairs_cache"]
-        assert pretoken_freqs == before["pretoken_freqs"]
+        assert bpe_tokenizer._pairs_cache == before["pairs_cache"]
+        assert bpe_tokenizer._pretoken_freqs == before["pretoken_freqs"]
 
-        ret = _old_merge(pairs_freqs, pair_freqs_lookup, pairs_cache, pretoken_freqs)
+        ret = _old_merge()
 
         if i < len(EXPECTED_STATES)-1:
             after = EXPECTED_STATES[i+1]
             pairs_freqs_ct = Counter(
                 {
-                    tup: freq for freq, tup, pres in pairs_freqs if pres
+                    tup: freq for freq, tup, pres in bpe_tokenizer._pairs_freqs if pres
                 }
             )
 
             assert pairs_freqs_ct == after["pairs_freqs"]
-            assert pairs_cache == after["pairs_cache"]
-            assert pretoken_freqs == after["pretoken_freqs"]
+            assert bpe_tokenizer._pairs_cache == after["pairs_cache"]
+            assert bpe_tokenizer._pretoken_freqs == after["pretoken_freqs"]
         else:
             assert not ret
 
@@ -1205,7 +1205,7 @@ def test_bpe_step_by_step():
     bpe_tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS, num_processes=10)
     _old_merge = bpe_tokenizer._merge
     i = [0]
-    bpe_tokenizer._merge = partial(_mock_merge, i, _old_merge)
+    bpe_tokenizer._merge = partial(_mock_merge, i, _old_merge, bpe_tokenizer)
 
     bpe_tokenizer.train("cs336_basics/tokenizer/tests/data/owt_debug.txt")
 
