@@ -254,6 +254,218 @@ EXPECTED_MERGES = [
             (b' ',): 1,
         }
     },
+    {
+        "pairs_freqs": Counter(
+            {
+                (b'x', b'x'): 1,
+                (b'x', b'b'): 2,
+                (b'b', b'h'): 1,
+                (b'kabh', b'b'): 1,
+                (b'kabh', b'kabh'): 4,
+                (b'h', b'kabh'): 1,
+                (b' ', b'b'): 3,
+                (b'ab', b'x'): 3,
+                (b'b', b'x'): 3,
+                (b'x', b'z'): 3,
+                (b' ', b'kabh'): 4,
+                (b' ', b'ab'): 6,
+                (b'ab', b'c'): 3,
+                (b'b', b'c'): 2,
+                (b'x', b'y'): 3,
+                (b'x', b'z'): 3,
+                (b' ', b'x'): 2,
+            }
+        ),
+        "pairs_cache": _reverse_pair_index({
+            (b'kabh', b'kabh'):  Counter({
+                    (b'kabh', b'kabh'): 1,
+            }),
+            (b' ', b'kabh', b'kabh'):  Counter({
+                    (b'kabh', b'kabh'): 1,
+                    (b' ', b'kabh'): 1,
+            }),
+            (b' ', b'kabh', b'b', b'h', b'kabh'):  Counter({
+                    (b'kabh', b'b'): 1,
+                    (b' ', b'kabh'): 1,
+                    (b'h', b'kabh'): 1,
+                    (b'b', b'h'): 1,
+            }),
+            (b' ', b'b', b'x', b'z'): Counter({
+                (b' ', b'b'): 1,
+                (b'b', b'x'): 1,
+                (b'x', b'z'): 1,
+            }),
+            (b' ', b'ab', b'c'): Counter({
+                (b' ', b'ab'): 1,
+                (b'ab', b'c'): 1,
+            }),
+            (b' ', b'ab', b'x', b'y'): Counter({
+                (b' ', b'ab'): 1,
+                (b'ab', b'x'): 1,
+                (b'x', b'y'): 1,
+            }),
+            (b' ', b'x', b'b', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'b'): 1,
+                (b'b', b'c'): 1,
+            }),
+            (b' ', b'x', b'x', b'b', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'x'): 1,
+                (b'x', b'b'): 1,
+                (b'b', b'c'): 1,
+            }),
+        }),
+        "pretoken_freqs": {
+            (b'kabh', b'kabh'): 1,
+            (b' ', b'b', b'x', b'z'): 3,
+            (b' ', b'kabh', b'kabh'): 3,
+            (b' ', b'kabh', b'b', b'h', b'kabh'): 1,
+            (b' ', b'ab', b'c'): 3,
+            (b' ', b'ab', b'x', b'y'): 3,
+            (b' ', b'x', b'b', b'c'): 1,
+            (b' ', b'x', b'x', b'b', b'c'): 1,
+            (b' ',): 1,
+        }
+    },
+    {
+        "pairs_freqs": Counter(
+            {
+                (b'x', b'x'): 1,
+                (b'x', b'b'): 2,
+                (b'b', b'h'): 1,
+                (b'kabh', b'b'): 1,
+                (b'kabh', b'kabh'): 4,
+                (b'h', b'kabh'): 1,
+                (b' ', b'b'): 3,
+                (b' ab', b'x'): 3,
+                (b'b', b'x'): 3,
+                (b'x', b'z'): 3,
+                (b' ', b'kabh'): 4,
+                (b' ab', b'c'): 3,
+                (b'b', b'c'): 2,
+                (b'x', b'y'): 3,
+                (b'x', b'z'): 3,
+                (b' ', b'x'): 2,
+            }
+        ),
+        "pairs_cache": _reverse_pair_index({
+            (b'kabh', b'kabh'):  Counter({
+                    (b'kabh', b'kabh'): 1,
+            }),
+            (b' ', b'kabh', b'kabh'):  Counter({
+                    (b'kabh', b'kabh'): 1,
+                    (b' ', b'kabh'): 1,
+            }),
+            (b' ', b'kabh', b'b', b'h', b'kabh'):  Counter({
+                    (b'kabh', b'b'): 1,
+                    (b' ', b'kabh'): 1,
+                    (b'h', b'kabh'): 1,
+                    (b'b', b'h'): 1,
+            }),
+            (b' ', b'b', b'x', b'z'): Counter({
+                (b' ', b'b'): 1,
+                (b'b', b'x'): 1,
+                (b'x', b'z'): 1,
+            }),
+            (b' ab', b'c'): Counter({
+                (b' ab', b'c'): 1,
+            }),
+            (b' ab', b'x', b'y'): Counter({
+                (b' ab', b'x'): 1,
+                (b'x', b'y'): 1,
+            }),
+            (b' ', b'x', b'b', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'b'): 1,
+                (b'b', b'c'): 1,
+            }),
+            (b' ', b'x', b'x', b'b', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'x'): 1,
+                (b'x', b'b'): 1,
+                (b'b', b'c'): 1,
+            }),
+        }),
+        "pretoken_freqs": {
+            (b'kabh', b'kabh'): 1,
+            (b' ', b'b', b'x', b'z'): 3,
+            (b' ', b'kabh', b'kabh'): 3,
+            (b' ', b'kabh', b'b', b'h', b'kabh'): 1,
+            (b' ab', b'c'): 3,
+            (b' ab', b'x', b'y'): 3,
+            (b' ', b'x', b'b', b'c'): 1,
+            (b' ', b'x', b'x', b'b', b'c'): 1,
+            (b' ',): 1,
+        }
+    },
+    {
+        "pairs_freqs": Counter(
+            {
+                (b'x', b'x'): 1,
+                (b'x', b'b'): 2,
+                (b'b', b'h'): 1,
+                (b'kabh', b'b'): 1,
+                (b' ', b'kabhkabh'): 3,
+                (b'h', b'kabh'): 1,
+                (b' ', b'b'): 3,
+                (b' ab', b'x'): 3,
+                (b'b', b'x'): 3,
+                (b'x', b'z'): 3,
+                (b' ', b'kabh'): 1,
+                (b' ab', b'c'): 3,
+                (b'b', b'c'): 2,
+                (b'x', b'y'): 3,
+                (b'x', b'z'): 3,
+                (b' ', b'x'): 2,
+            }
+        ),
+        "pairs_cache": _reverse_pair_index({
+            (b' ', b'kabhkabh'):  Counter({
+                    (b' ', b'kabhkabh'): 1,
+            }),
+            (b' ', b'kabh', b'b', b'h', b'kabh'):  Counter({
+                    (b'kabh', b'b'): 1,
+                    (b' ', b'kabh'): 1,
+                    (b'h', b'kabh'): 1,
+                    (b'b', b'h'): 1,
+            }),
+            (b' ', b'b', b'x', b'z'): Counter({
+                (b' ', b'b'): 1,
+                (b'b', b'x'): 1,
+                (b'x', b'z'): 1,
+            }),
+            (b' ab', b'c'): Counter({
+                (b' ab', b'c'): 1,
+            }),
+            (b' ab', b'x', b'y'): Counter({
+                (b' ab', b'x'): 1,
+                (b'x', b'y'): 1,
+            }),
+            (b' ', b'x', b'b', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'b'): 1,
+                (b'b', b'c'): 1,
+            }),
+            (b' ', b'x', b'x', b'b', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'x'): 1,
+                (b'x', b'b'): 1,
+                (b'b', b'c'): 1,
+            }),
+        }),
+        "pretoken_freqs": {
+            (b' ', b'b', b'x', b'z'): 3,
+            (b' ', b'kabhkabh'): 3,
+            (b'kabhkabh',): 1,
+            (b' ', b'kabh', b'b', b'h', b'kabh'): 1,
+            (b' ab', b'c'): 3,
+            (b' ab', b'x', b'y'): 3,
+            (b' ', b'x', b'b', b'c'): 1,
+            (b' ', b'x', b'x', b'b', b'c'): 1,
+            (b' ',): 1,
+        }
+    },
 ]
 
 
