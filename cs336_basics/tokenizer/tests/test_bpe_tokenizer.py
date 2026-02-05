@@ -927,6 +927,43 @@ EXPECTED_MERGES = [
             (b' ',): 1,
         }
     },
+    {
+        "pairs_freqs": Counter(
+            {
+                (b'b', b'h'): 1,
+                (b'kabh', b'b'): 1,
+                (b'h', b'kabh'): 1,
+                (b' ', b'kabh'): 1,
+                (b' ', b'xxbc'): 1,
+                (b' ', b'xbc'): 1,
+            }
+        ),
+        "pairs_cache": _reverse_pair_index({
+            (b' ', b'kabh', b'b', b'h', b'kabh'):  Counter({
+                    (b'kabh', b'b'): 1,
+                    (b' ', b'kabh'): 1,
+                    (b'h', b'kabh'): 1,
+                    (b'b', b'h'): 1,
+            }),
+            (b' ', b'xbc'): Counter({
+                (b' ', b'xbc'): 1,
+            }),
+            (b' ', b'xxbc'): Counter({
+                (b' ', b'xxbc'): 1,
+            }),
+        }),
+        "pretoken_freqs": {
+            (b' bxz',): 3,
+            (b' kabhkabh',): 3,
+            (b'kabhkabh',): 1,
+            (b' ', b'kabh', b'b', b'h', b'kabh'): 1,
+            (b' abc',): 3,
+            (b' abxy',): 3,
+            (b' ', b'xbc'): 1,
+            (b' ', b'xxbc'): 1,
+            (b' ',): 1,
+        }
+    },
 ]
 
 
