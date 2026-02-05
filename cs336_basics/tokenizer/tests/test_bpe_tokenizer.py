@@ -13,6 +13,31 @@ def _reverse_pair_index(token_to_pairs):
 
 
 EXPECTED_MERGES = [
+    (b'a', b'b'),
+    (b'k', b'ab'),
+    (b'kab', b'h'),
+    (b' ', b'ab'),
+    (b'kabh', b'kabh'),
+    (b'x', b'z'),
+    (b'x', b'y'),
+    (b'b', b'xz'),
+    (b' ab', b'xy'),
+    (b' ab', b'c'),
+    (b' ', b'kabhkabh'),
+    (b' ', b'bxz'),
+    (b'x', b'b'),
+    (b'xb', b'c'),
+    (b'x', b'xbc'),
+    (b'kabh', b'b'),
+    (b'kabhb', b'h'),
+    (b'kabhbh', b'kabh'),
+    (b' ', b'xxbc'),
+    (b' ', b'xbc'),
+    (b' ', b'kabhbhkabh')
+]
+
+
+EXPECTED_STATES = [
     {
         "pairs_freqs": Counter(
             {
@@ -1113,6 +1138,21 @@ EXPECTED_MERGES = [
             (b' ',): 1,
         }
     },
+    {
+        "pairs_freqs": Counter(),
+        "pairs_cache": {},
+        "pretoken_freqs": {
+            (b' bxz',): 3,
+            (b' kabhkabh',): 3,
+            (b'kabhkabh',): 1,
+            (b' kabhbhkabh',): 1,
+            (b' abc',): 3,
+            (b' abxy',): 3,
+            (b' xbc',): 1,
+            (b' xxbc',): 1,
+            (b' ',): 1,
+        }
+    },
 ]
 
 
@@ -1124,8 +1164,7 @@ def test_bpe_step_by_step():
 
     def _mock_merge(pairs_freqs, pairs_cache, pretoken_freqs):
         nonlocal i
-        before = EXPECTED_MERGES[i]
-        after = EXPECTED_MERGES[i+1]
+        before = EXPECTED_STATES[i]
 
         assert pairs_freqs == before["pairs_freqs"]
         assert pairs_cache == before["pairs_cache"]
@@ -1133,9 +1172,14 @@ def test_bpe_step_by_step():
 
         ret = _old_merge(pairs_freqs, pairs_cache, pretoken_freqs)
 
-        assert pairs_freqs == after["pairs_freqs"]
-        assert pairs_cache == after["pairs_cache"]
-        assert pretoken_freqs == after["pretoken_freqs"]
+        if i < len(EXPECTED_STATES)-1:
+            after = EXPECTED_STATES[i+1]
+
+            assert pairs_freqs == after["pairs_freqs"]
+            assert pairs_cache == after["pairs_cache"]
+            assert pretoken_freqs == after["pretoken_freqs"]
+        else:
+            assert not ret
 
         i += 1
 
@@ -1143,3 +1187,5 @@ def test_bpe_step_by_step():
 
     bpe_tokenizer._merge = _mock_merge
     bpe_tokenizer.train("cs336_basics/tokenizer/tests/data/owt_debug.txt")
+
+    assert bpe_tokenizer.merges == EXPECTED_MERGES
