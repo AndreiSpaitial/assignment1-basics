@@ -1,3 +1,5 @@
+from functools import partial
+
 from collections import Counter, defaultdict
 
 from cs336_basics.tokenizer import BPETokenizer
@@ -36,6 +38,14 @@ EXPECTED_MERGES = [
     (b' ', b'kabhbhkabh')
 ]
 
+SPECIAL_TOKENS = ["<|endoftext|>", "<|endofthing|>"]
+EXPECTED_VOCAB = {i: bytes([i]) for i in range(256)}
+for tok in SPECIAL_TOKENS:
+    token_utf8 = tok.encode("utf-8")
+    EXPECTED_VOCAB[len(EXPECTED_VOCAB)] = token_utf8
+
+for b1,b2 in EXPECTED_MERGES:
+    EXPECTED_VOCAB[len(EXPECTED_VOCAB)] = b1+b2
 
 EXPECTED_STATES = [
     {
@@ -1156,14 +1166,8 @@ EXPECTED_STATES = [
 ]
 
 
-def test_bpe_step_by_step():
-    bpe_tokenizer = BPETokenizer(special_tokens=["<|endoftext|>", "<|endofthing|>"], num_processes=10)
-    _old_merge = bpe_tokenizer._merge
-
-    i = 0
-
-    def _mock_merge(pairs_freqs, pair_freqs_lookup, pairs_cache, pretoken_freqs):
-        nonlocal i
+def _mock_merge(i_ptr, _old_merge, pairs_freqs, pair_freqs_lookup, pairs_cache, pretoken_freqs):
+        i = i_ptr[0]
         before = EXPECTED_STATES[i]
 
         pairs_freqs_ct = Counter(
@@ -1192,11 +1196,18 @@ def test_bpe_step_by_step():
         else:
             assert not ret
 
-        i += 1
+        i_ptr[0] += 1
 
         return ret
 
-    bpe_tokenizer._merge = _mock_merge
+
+def test_bpe_step_by_step():
+    bpe_tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS, num_processes=10)
+    _old_merge = bpe_tokenizer._merge
+    i = [0]
+    bpe_tokenizer._merge = partial(_mock_merge, i, _old_merge)
+
     bpe_tokenizer.train("cs336_basics/tokenizer/tests/data/owt_debug.txt")
 
     assert bpe_tokenizer.merges == EXPECTED_MERGES
+    assert bpe_tokenizer.dictionary == EXPECTED_VOCAB

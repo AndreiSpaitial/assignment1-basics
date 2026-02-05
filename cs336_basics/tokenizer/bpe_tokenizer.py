@@ -1,4 +1,6 @@
 import heapq
+import multiprocessing
+import os
 import regex as re
 import time
 from collections import defaultdict, Counter
@@ -14,15 +16,19 @@ PRETOKENIZER_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+
 
 class BPETokenizer:
     def __init__(self, 
-            special_tokens: list[str],
-            vocab_size: int = 50_000,
-            num_processes: int = 4,
-        ):
+        special_tokens: list[str],
+        vocab_size: int = 50_000,
+        num_processes: int = 4,
+    ):
         self.special_tokens = special_tokens
-        self.dictionary: list[bytes] = [bytes([i]) for i in range(256)]
-        self.dictionary.extend([el.encode("utf-8") for el in special_tokens])
+        self.dictionary: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
+        i = len(self.dictionary)
+        for el in special_tokens:
+            token_utf8 = el.encode("utf-8")
+            self.dictionary[i] = token_utf8
+            i += 1
 
-        self.merges: list[tuple[bytes]] = []
+        self.merges: list[tuple[bytes, bytes]] = []
 
         self.num_processes = num_processes
         self.vocab_size = vocab_size
@@ -60,32 +66,47 @@ class BPETokenizer:
                 token_freq[pretoken] += 1
 
         return token_freq, pairs_cache
-    
+
+    def _process_chunk(self, file_name, start, end):
+        with open(file_name, "rb") as f:
+            f.seek(start)
+            chunk = f.read(end - start).decode("utf-8", errors="ignore")
+            # Run pre-tokenization on your chunk and store the counts for each pre-token
+
+            return self._pretokenize_chunk(chunk)
+
     def _pretokenize(self, file_name) -> tuple[
             Counter[tuple[bytes], int], 
             dict[tuple[bytes], Counter[tuple[bytes], int]]
         ]:
-        with open(file_name, "rb") as f:
-            boundaries = find_chunk_boundaries(f, self.num_processes, b"<|endoftext|>")
 
-            pretoken_freqs = Counter()
-            pairs_cache = defaultdict(Counter)
+        processes = []
+        q = multiprocessing.Queue()
+
+        pretoken_freqs = Counter()
+        pairs_cache = defaultdict(Counter)
+
+        with open(file_name, "rb") as fb:
+            boundaries = find_chunk_boundaries(fb, self.num_processes, b"<|endoftext|>")
+
             # The following is a serial implementation, but you can parallelize this
             # by sending each start/end pair to a set of processes.
-            for start, end in zip(boundaries[:-1], boundaries[1:]):
-                f.seek(start)
-                chunk = f.read(end - start).decode("utf-8", errors="ignore")
-                # Run pre-tokenization on your chunk and store the counts for each pre-token
 
-                pretoken_freqs_chunk, pairs_cache_chunk = self._pretokenize_chunk(chunk)
-                pretoken_freqs += pretoken_freqs_chunk
+        with multiprocessing.Pool(processes=self.num_processes) as pool:
+            # map blocks until all results are ready
+            results = pool.starmap(
+                self._process_chunk,
+                [(file_name, start, end) for start,end in zip(boundaries[:-1], boundaries[1:])]
+            )
 
-                for pair, pretokens in pairs_cache_chunk.items():
-                    pairs = pairs_cache[pair]
-                    for pretoken, freq in pretokens.items():
-                        if pretoken in pairs:
-                            continue
-                        pairs[pretoken] = freq
+        for pretoken_freqs_chunk, pairs_cache_chunk in results:
+            pretoken_freqs += pretoken_freqs_chunk
+            for pair, pretokens in pairs_cache_chunk.items():
+                pairs = pairs_cache[pair]
+                for pretoken, freq in pretokens.items():
+                    if pretoken in pairs:
+                        continue
+                    pairs[pretoken] = freq
 
         return pretoken_freqs, pairs_cache
 
@@ -140,7 +161,7 @@ class BPETokenizer:
             return False
 
         self.merges.append(max_pair)
-        self.dictionary.append(max_pair[0]+max_pair[1])
+        self.dictionary[len(self.dictionary)] = max_pair[0]+max_pair[1]
 
         # print(f"Chose {max_pair}")
         pretokens = pairs_cache.pop(max_pair)
@@ -196,7 +217,7 @@ class BPETokenizer:
 
         return True
 
-    def train(self, file_name: str) -> None:
+    def train(self, file_name: str | os.PathLike) -> None:
         start_time = time.time()
         pretoken_freqs, pairs_cache = self._pretokenize(file_name)
         end_time = time.time()
@@ -204,7 +225,7 @@ class BPETokenizer:
         # print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
         pairs_freqs: list[tuple[tuple[bytes], int]] = []
-        pairs_freq_ct = Counter()
+        pairs_freq_ct: Counter[tuple[bytes, bytes]] = Counter()
         for pair, pretokens in pairs_cache.items():
             for pretoken, pretoken_pair_freq in pretokens.items():
                 freq = pretoken_freqs[pretoken]
