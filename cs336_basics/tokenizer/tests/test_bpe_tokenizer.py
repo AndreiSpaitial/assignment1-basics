@@ -999,14 +999,48 @@ EXPECTED_MERGES = [
             (b' ',): 1,
         }
     },
+    {
+        "pairs_freqs": Counter(
+            {
+                (b'kabhbh', b'kabh'): 1,
+                (b' ', b'kabhbh'): 1,
+                (b' ', b'xxbc'): 1,
+                (b' ', b'xbc'): 1,
+            }
+        ),
+        "pairs_cache": _reverse_pair_index({
+            (b' ', b'kabhbh', b'kabh'):  Counter({
+                    (b' ', b'kabhbh'): 1,
+                    (b'kabhbh', b'kabh'): 1,
+            }),
+            (b' ', b'xbc'): Counter({
+                (b' ', b'xbc'): 1,
+            }),
+            (b' ', b'xxbc'): Counter({
+                (b' ', b'xxbc'): 1,
+            }),
+        }),
+        "pretoken_freqs": {
+            (b' bxz',): 3,
+            (b' kabhkabh',): 3,
+            (b'kabhkabh',): 1,
+            (b' ', b'kabhbh', b'kabh'): 1,
+            (b' abc',): 3,
+            (b' abxy',): 3,
+            (b' ', b'xbc'): 1,
+            (b' ', b'xxbc'): 1,
+            (b' ',): 1,
+        }
+    },
 ]
 
 
 def test_bpe_step_by_step():
     bpe_tokenizer = BPETokenizer(special_tokens=["<|endoftext|>", "<|endofthing|>"], num_processes=10)
     _old_merge = bpe_tokenizer._merge
-    
-    i=0
+
+    i = 0
+
     def _mock_merge(pairs_freqs, pairs_cache, pretoken_freqs):
         nonlocal i
         before = EXPECTED_MERGES[i]
@@ -1025,7 +1059,6 @@ def test_bpe_step_by_step():
         i += 1
 
         return ret
-    
+
     bpe_tokenizer._merge = _mock_merge
     bpe_tokenizer.train("cs336_basics/tokenizer/tests/data/owt_debug.txt")
-
