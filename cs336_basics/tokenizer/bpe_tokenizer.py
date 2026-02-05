@@ -90,7 +90,7 @@ class BPETokenizer:
 
     def _merge_pretoken(self, pretoken: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
         i=0
-        pairs = self._token_pairs_cache[pretoken]
+        pairs = Counter({**self._token_pairs_cache[pretoken]})
         merged_pair = pair[0] + pair[1]
         while i < len(pretoken)-1:
             if pretoken[i:(i+2)] == pair:
@@ -143,34 +143,38 @@ class BPETokenizer:
         self.merges.append(max_pair)
         self.dictionary.append(max_pair[0]+max_pair[1])
 
-        print(f"Chose {max_pair}")
+        # print(f"Chose {max_pair}")
         pretokens = pairs_cache.pop(max_pair)
         for pretoken in pretokens:
             pretoken_freq = pretoken_freqs.pop(pretoken)
             pairs = self._token_pairs(pretoken)
-            
-            print(f"{pretoken=:}")
-            for pair, freq in pairs.items():
-                if pair != max_pair:
-                    pairs_cache[pair].pop(pretoken)
-                pairs_freqs[pair] -= pretoken_freq*freq
 
-                print(f"pairs_freqs[{pair}]={pairs_freqs[pair]}")
-                if pairs_freqs[pair] < 0:
-                    print(f"Failed with {pretoken=:} {pair=:}, {max_pair=:}, {pretoken_freq=:}, {freq=:}")
-
+            # print(f"{pretoken=:}")
             new_pretoken, new_pairs = self._merge_pretoken(pretoken, max_pair)
-
             pretoken_freqs[new_pretoken] = pretoken_freq
             
-            for pair,freq in new_pairs.items():
-                pairs_cache[pair][new_pretoken] = freq
+            # TODO: heapify this with heap replace
+            for pair,freq in pairs.items():
+                # print(f"pairs cache {pair}", pairs_cache[pair])
+                if pair != max_pair:
+                    pairs_cache[pair].pop(pretoken)
+                new_freq = new_pairs[pair]
+                diff = (new_freq-freq)*pretoken_freq
+                if diff == 0:
+                    continue
+                pairs_freqs[pair] += diff
+                if pairs_freqs[pair] == 0:
+                    pairs_freqs.pop(pair)
+                # print(f"pairs_freqs[{pair}]={pairs_freqs[pair]}")
             
             merged_pair = max_pair[0] + max_pair[1]
             for new_pair, freq in new_pairs.items():
+                pairs_cache[new_pair][new_pretoken] = freq
+                if new_pair in pairs:
+                    continue
                 new_pair_freq = freq * pretoken_freq
                 pairs_freqs[new_pair] += new_pair_freq
-                print(f"new pairs_freqs[{new_pair}]={pairs_freqs[new_pair]}")
+                # print(f"new pairs_freqs[{new_pair}]={pairs_freqs[new_pair]}")
         
         return True
 
@@ -179,7 +183,7 @@ class BPETokenizer:
         pretoken_freqs, pairs_cache = self._pretokenize(file_name)
         end_time = time.time()
 
-        print(f"Pre-tokenization done in {(end_time-start_time)}s")
+        # print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
         pairs_freqs: Counter[tuple[bytes], int] = Counter()
         for pair, pretokens in pairs_cache.items():
@@ -194,8 +198,8 @@ class BPETokenizer:
             while found_pair and len(self.dictionary) < self.vocab_size:
                 found_pair = self._merge(pairs_freqs, pairs_cache, pretoken_freqs)
 
-                print(pairs_freqs)
-                print("£££\n"*3)
+                # print(pairs_freqs)
+                # print("£££\n"*3)
                 pbar.update(1)
 
         end_time = time.time()
