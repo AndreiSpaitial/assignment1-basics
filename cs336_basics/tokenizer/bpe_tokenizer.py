@@ -152,12 +152,13 @@ class BPETokenizer:
             # print(f"{pretoken=:}")
             new_pretoken, new_pairs = self._merge_pretoken(pretoken, max_pair)
             pretoken_freqs[new_pretoken] = pretoken_freq
-            
             # TODO: heapify this with heap replace
             for pair,freq in pairs.items():
                 # print(f"pairs cache {pair}", pairs_cache[pair])
                 if pair != max_pair:
                     pairs_cache[pair].pop(pretoken)
+                    if len(pairs_cache[pair]) == 0:
+                        pairs_cache.pop(pair)
                 new_freq = new_pairs[pair]
                 diff = (new_freq-freq)*pretoken_freq
                 if diff == 0:
