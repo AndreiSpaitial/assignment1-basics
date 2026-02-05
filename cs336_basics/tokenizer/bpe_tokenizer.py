@@ -34,7 +34,9 @@ class BPETokenizer:
         self.num_processes = num_processes
         self.vocab_size = vocab_size
 
-        self._token_pairs_cache: dict[tuple[bytes], Counter[tuple[bytes, bytes]]] = {}
+        self._token_pairs_cache: dict[
+            tuple[bytes, ...], Counter[tuple[bytes, bytes]]
+        ] = {}
         self._pairs_freqs: list[tuple[tuple[bytes, bytes], int, bool]] = []
         self._pairs_freqs_lookup: dict[tuple[bytes, bytes], list] = {}
         self._pairs_cache: dict[
@@ -47,7 +49,7 @@ class BPETokenizer:
         return tuple(bytes([el]) for el in input_str_utf8)
 
     def _token_pairs(
-        self, pretoken: tuple[bytes]
+        self, pretoken: tuple[bytes, ...]
     ) -> Counter[tuple[bytes, bytes]]:
         if pretoken in self._token_pairs_cache:
             return self._token_pairs_cache[pretoken]
@@ -57,12 +59,14 @@ class BPETokenizer:
         return ret
 
     def _pretokenize_chunk(self, chunk: str) -> tuple[
-            Counter[tuple[bytes]],
-            dict[tuple[bytes], Counter[tuple[bytes]]],
+            Counter[tuple[bytes, ...]],
+            dict[tuple[bytes, bytes], Counter[tuple[bytes, ...]]],
             ]:
         split_regex = "|".join(re.escape(el) for el in self.special_tokens)
-        token_freq = Counter()
-        pairs_cache: dict[tuple[bytes], Counter[tuple[bytes], int]] = defaultdict(Counter)
+        token_freq: Counter[tuple[bytes, ...]] = Counter()
+        pairs_cache: dict[
+            tuple[bytes, bytes], Counter[tuple[bytes, ...]]
+        ] = defaultdict(Counter)
 
         for doc in re.split(split_regex, chunk):
             for pre_token in re.finditer(PRETOKENIZER_PAT, doc):
@@ -71,7 +75,7 @@ class BPETokenizer:
 
                 for pair, freq in pairs.items():
                     pairs_cache[pair][pretoken] = freq
-                
+
                 token_freq[pretoken] += 1
 
         return token_freq, pairs_cache
@@ -85,8 +89,8 @@ class BPETokenizer:
             return self._pretokenize_chunk(chunk)
 
     def _pretokenize(self, file_name) -> None:
-        processes = []
-        q = multiprocessing.Queue()
+        if len(self._pretoken_freqs) > 0 and len(self._pairs_cache) > 0:
+            return
 
         pretoken_freqs = Counter()
         pairs_cache = defaultdict(Counter)
@@ -101,7 +105,10 @@ class BPETokenizer:
             # map blocks until all results are ready
             results = pool.starmap(
                 self._process_chunk,
-                [(file_name, start, end) for start,end in zip(boundaries[:-1], boundaries[1:])]
+                [
+                    (file_name, start, end)
+                    for start, end in zip(boundaries[:-1], boundaries[1:])
+                ]
             )
 
         for pretoken_freqs_chunk, pairs_cache_chunk in results:
@@ -116,8 +123,10 @@ class BPETokenizer:
         self._pretoken_freqs = pretoken_freqs
         self._pairs_cache = pairs_cache
 
-    def _merge_pretoken(self, pretoken: tuple[bytes], pair: tuple[bytes]) -> tuple[bytes]:
-        i=0
+    def _merge_pretoken(
+            self, pretoken: tuple[bytes, ...], pair: tuple[bytes, bytes]
+            ) -> tuple[tuple[bytes, ...], Counter[tuple[bytes, bytes]]]:
+        i = 0
         pairs = Counter({**self._token_pairs_cache[pretoken]})
         merged_pair = pair[0] + pair[1]
         while i < len(pretoken)-1:
@@ -140,7 +149,7 @@ class BPETokenizer:
                 pretoken = pretoken[:i] + (merged_pair,) + pretoken[i+2:]
             else:
                 i += 1
-        
+
         self._token_pairs_cache[pretoken] = pairs
         return pretoken, pairs
 
@@ -225,7 +234,7 @@ class BPETokenizer:
 
         # print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
-        pairs_freqs: list[tuple[tuple[bytes], int]] = self._pairs_freqs
+        pairs_freqs: list[tuple[tuple[bytes, bytes], int, bool]] = self._pairs_freqs
         pairs_freq_ct: Counter[tuple[bytes, bytes]] = Counter()
         for pair, pretokens in self._pairs_cache.items():
             for pretoken, pretoken_pair_freq in pretokens.items():
