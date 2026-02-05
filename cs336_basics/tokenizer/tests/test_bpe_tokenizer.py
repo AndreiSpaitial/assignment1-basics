@@ -1162,20 +1162,31 @@ def test_bpe_step_by_step():
 
     i = 0
 
-    def _mock_merge(pairs_freqs, pairs_cache, pretoken_freqs):
+    def _mock_merge(pairs_freqs, pair_freqs_lookup, pairs_cache, pretoken_freqs):
         nonlocal i
         before = EXPECTED_STATES[i]
 
-        assert pairs_freqs == before["pairs_freqs"]
+        pairs_freqs_ct = Counter(
+            {
+                tup: freq for freq, tup, pres in pairs_freqs if pres
+            }
+        )
+
+        assert pairs_freqs_ct == before["pairs_freqs"]
         assert pairs_cache == before["pairs_cache"]
         assert pretoken_freqs == before["pretoken_freqs"]
 
-        ret = _old_merge(pairs_freqs, pairs_cache, pretoken_freqs)
+        ret = _old_merge(pairs_freqs, pair_freqs_lookup, pairs_cache, pretoken_freqs)
 
         if i < len(EXPECTED_STATES)-1:
             after = EXPECTED_STATES[i+1]
+            pairs_freqs_ct = Counter(
+                {
+                    tup: freq for freq, tup, pres in pairs_freqs if pres
+                }
+            )
 
-            assert pairs_freqs == after["pairs_freqs"]
+            assert pairs_freqs_ct == after["pairs_freqs"]
             assert pairs_cache == after["pairs_cache"]
             assert pretoken_freqs == after["pretoken_freqs"]
         else:

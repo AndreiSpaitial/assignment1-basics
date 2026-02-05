@@ -1,3 +1,4 @@
+import heapq
 import regex as re
 import time
 from collections import defaultdict, Counter
@@ -117,25 +118,23 @@ class BPETokenizer:
         return pretoken, pairs
 
     def _merge(
-            self, 
-            pairs_freqs: Counter[tuple[bytes], int],
+            self,
+            pairs_freqs: list[tuple[int, tuple[bytes]]],
+            pairs_freqs_lookup,
             pairs_cache: dict[tuple[bytes], Counter[tuple[bytes], int]],
             pretoken_freqs: Counter[tuple[bytes], int],
         ) -> tuple[
-            dict[tuple[bytes], Counter[tuple[bytes], int]], 
+            dict[tuple[bytes], Counter[tuple[bytes], int]],
             Counter[tuple[bytes], int]
         ]:
 
-        max_pair, max_freq = None,None
-        for pair,freq in pairs_freqs.items():
-            if freq == 0:
+        max_pair, max_freq = None, None
+        while pairs_freqs:
+            freq, pair, present = heapq._heappop_max(pairs_freqs)
+            if not present:
                 continue
-            if max_pair is None:
-                max_pair = pair
-            if max_freq is None:
-                max_freq = freq
-            
-            max_freq, max_pair = max((max_freq, max_pair), (freq, pair))
+            max_pair, max_freq = pair, freq
+            break
 
         if max_pair is None: # no more merges possible, all pre-tokens are a single bytes object
             return False
@@ -163,9 +162,17 @@ class BPETokenizer:
                 diff = (new_freq-freq)*pretoken_freq
                 if diff == 0:
                     continue
-                pairs_freqs[pair] += diff
-                if pairs_freqs[pair] == 0:
-                    pairs_freqs.pop(pair)
+
+                entry = pairs_freqs_lookup[pair]
+                entry[-1] = False
+
+                if entry[0]+diff != 0:
+                    new_entry = [entry[0]+diff, entry[1], True]
+                    pairs_freqs.append(new_entry)
+                    heapq._siftdown_max(pairs_freqs, 0, len(pairs_freqs)-1)
+                    pairs_freqs_lookup[pair] = new_entry
+                else:
+                    pairs_freqs_lookup.pop(pair)
                 # print(f"pairs_freqs[{pair}]={pairs_freqs[pair]}")
             
             merged_pair = max_pair[0] + max_pair[1]
@@ -174,9 +181,19 @@ class BPETokenizer:
                 if new_pair in pairs:
                     continue
                 new_pair_freq = freq * pretoken_freq
-                pairs_freqs[new_pair] += new_pair_freq
+                
+                entry = pairs_freqs_lookup.get(new_pair, [0, new_pair, True])
+                entry[-1] = False
+                new_entry = [entry[0]+new_pair_freq, new_pair, True]
+                pairs_freqs_lookup[new_pair] = new_entry
+                pairs_freqs.append(new_entry)
+                heapq._siftdown_max(pairs_freqs, 0, len(pairs_freqs)-1)
+
                 # print(f"new pairs_freqs[{new_pair}]={pairs_freqs[new_pair]}")
         
+        # print(pairs_freqs)
+        # print("£££\n"*3)
+
         return True
 
     def train(self, file_name: str) -> None:
@@ -186,18 +203,30 @@ class BPETokenizer:
 
         # print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
-        pairs_freqs: Counter[tuple[bytes], int] = Counter()
+        pairs_freqs: list[tuple[tuple[bytes], int]] = []
+        pairs_freq_ct = Counter()
         for pair, pretokens in pairs_cache.items():
             for pretoken, pretoken_pair_freq in pretokens.items():
                 freq = pretoken_freqs[pretoken]
-                pairs_freqs[pair] += freq*pretoken_pair_freq
+                pairs_freq_ct[pair] += freq*pretoken_pair_freq
+
+        pairs_freqs = []
+        pairs_freqs_lookup = {}
+
+        for tup,freq in pairs_freq_ct.items():
+            entry = [freq, tup, True]
+            pairs_freqs_lookup[tup] = entry
+            pairs_freqs.append(entry)
+
+        heapq._heapify_max(pairs_freqs)
+
 
         i = 0
         found_pair = True
         start_time = time.time()
         with tqdm(total=self.vocab_size) as pbar:
             while found_pair and len(self.dictionary) < self.vocab_size:
-                found_pair = self._merge(pairs_freqs, pairs_cache, pretoken_freqs)
+                found_pair = self._merge(pairs_freqs, pairs_freqs_lookup, pairs_cache, pretoken_freqs)
 
                 # print(pairs_freqs)
                 # print("£££\n"*3)
