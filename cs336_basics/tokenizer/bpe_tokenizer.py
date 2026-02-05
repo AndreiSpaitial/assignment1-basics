@@ -15,11 +15,12 @@ PRETOKENIZER_PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+
 
 
 class BPETokenizer:
-    def __init__(self, 
-        special_tokens: list[str],
-        vocab_size: int = 50_000,
-        num_processes: int = 4,
-    ):
+    def __init__(
+            self,
+            special_tokens: list[str],
+            vocab_size: int = 50_000,
+            num_processes: int = 4,
+            ):
         self.special_tokens = special_tokens
         self.dictionary: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
         i = len(self.dictionary)
@@ -33,28 +34,32 @@ class BPETokenizer:
         self.num_processes = num_processes
         self.vocab_size = vocab_size
 
-        self._token_pairs_cache = {}
-        self._pairs_freqs = []
-        self._pairs_freqs_lookup = {}
-        self._pairs_cache = {}
-        self._pretoken_freqs = {}
+        self._token_pairs_cache: dict[tuple[bytes], Counter[tuple[bytes, bytes]]] = {}
+        self._pairs_freqs: list[tuple[tuple[bytes, bytes], int, bool]] = []
+        self._pairs_freqs_lookup: dict[tuple[bytes, bytes], list] = {}
+        self._pairs_cache: dict[
+            tuple[bytes, bytes], Counter[tuple[bytes]]
+        ] = {}
+        self._pretoken_freqs: Counter[tuple[bytes]] = Counter()
 
-    def _str_to_bytes_tuple(self, input_str: str) -> tuple[bytes]:
+    def _str_to_bytes_tuple(self, input_str: str) -> tuple[bytes, ...]:
         input_str_utf8 = input_str.encode("utf-8")
         return tuple(bytes([el]) for el in input_str_utf8)
 
-    def _token_pairs(self, pretoken: tuple[bytes]) -> Counter[tuple[bytes], int]:
+    def _token_pairs(
+        self, pretoken: tuple[bytes]
+    ) -> Counter[tuple[bytes, bytes]]:
         if pretoken in self._token_pairs_cache:
             return self._token_pairs_cache[pretoken]
-        ret = Counter((p1, p2) for p1,p2 in pairwise(pretoken))
+        ret = Counter((p1, p2) for p1, p2 in pairwise(pretoken))
 
         self._token_pairs_cache[pretoken] = ret
         return ret
 
     def _pretokenize_chunk(self, chunk: str) -> tuple[
-            Counter[tuple[bytes], int], 
-            dict[tuple[bytes], Counter[tuple[bytes], int]]
-        ]:
+            Counter[tuple[bytes]],
+            dict[tuple[bytes], Counter[tuple[bytes]]],
+            ]:
         split_regex = "|".join(re.escape(el) for el in self.special_tokens)
         token_freq = Counter()
         pairs_cache: dict[tuple[bytes], Counter[tuple[bytes], int]] = defaultdict(Counter)
@@ -140,7 +145,6 @@ class BPETokenizer:
         return pretoken, pairs
 
     def _merge(self) -> bool:
-        
         pairs_freqs = self._pairs_freqs
         pairs_freqs_lookup = self._pairs_freqs_lookup
         pairs_cache = self._pairs_cache
@@ -252,9 +256,15 @@ class BPETokenizer:
 
         print(f"Merging done in {(end_time-start_time)}s")
 
-    def tokenize(self, document: str) -> list[bytes]:
+    def tokenize(self, document: str) -> tuple[bytes]:
         ret = self._str_to_bytes_tuple(document)
         for merge in self.merges:
             ret = self._merge_pretoken(ret, merge)
-        
+
         return ret
+
+    def state_dict(self) -> dict:
+        return {}
+
+    def load_state_dict(self, new_dict) -> None:
+        pass
