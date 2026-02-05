@@ -846,6 +846,48 @@ EXPECTED_MERGES = [
             (b' ',): 1,
         }
     },
+    {
+        "pairs_freqs": Counter(
+            {
+                (b'x', b'xb'): 1,
+                (b'b', b'h'): 1,
+                (b'kabh', b'b'): 1,
+                (b'h', b'kabh'): 1,
+                (b' ', b'kabh'): 1,
+                (b'xb', b'c'): 2,
+                (b' ', b'x'): 1,
+                (b' ', b'xb'): 1,
+            }
+        ),
+        "pairs_cache": _reverse_pair_index({
+            (b' ', b'kabh', b'b', b'h', b'kabh'):  Counter({
+                    (b'kabh', b'b'): 1,
+                    (b' ', b'kabh'): 1,
+                    (b'h', b'kabh'): 1,
+                    (b'b', b'h'): 1,
+            }),
+            (b' ', b'xb', b'c'): Counter({
+                (b' ', b'xb'): 1,
+                (b'xb', b'c'): 1,
+            }),
+            (b' ', b'x', b'xb', b'c'): Counter({
+                (b' ', b'x'): 1,
+                (b'x', b'xb'): 1,
+                (b'xb', b'c'): 1,
+            }),
+        }),
+        "pretoken_freqs": {
+            (b' bxz',): 3,
+            (b' kabhkabh',): 3,
+            (b'kabhkabh',): 1,
+            (b' ', b'kabh', b'b', b'h', b'kabh'): 1,
+            (b' abc',): 3,
+            (b' abxy',): 3,
+            (b' ', b'xb', b'c'): 1,
+            (b' ', b'x', b'xb', b'c'): 1,
+            (b' ',): 1,
+        }
+    },
 ]
 
 
