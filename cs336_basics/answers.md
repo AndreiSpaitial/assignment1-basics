@@ -43,6 +43,13 @@ These are just the first two bytes of "は", and they don't make sense without t
 (a) ' responsibility', and it makes sense
 (b) Pre-tokenising the raw corpus takes the longest
 
+## Problem (train_bpe_owt): BPE Training on OWT
+
+(a) b'----------------------------------------------------------------', not useful could probable do with some cleaning
+
+(b) Compare and contrast the tokenizer that you get training on TinyStories versus OpenWebText.
+Deliverable: A one-to-two sentence response.
+
 
 ## Tokenizer experiments
 
@@ -67,8 +74,8 @@ TinyStoriesEncoder is less efficient at compressing OWT. (3.46 bytes/token vs 4.
 (c) Estimate the throughput of your tokenizer (e.g., in bytes/second). How long would it take to
 tokenize the Pile dataset (825GB of text)?
 
-TinyStories: 30M bytes/second -> 7 Hours for Pile
-OWT: 
+TinyStories: 5M bytes/second -> ~45 hours for Pile
+OWT: 5M bytes/second -> ~45 hours for Pile
 
 (d) Using your TinyStories and OpenWebText tokenizers, encode the respective training and devel-
 opment datasets into a sequence of integer token IDs. We’ll use this later to train our language

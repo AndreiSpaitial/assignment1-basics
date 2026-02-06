@@ -26,11 +26,14 @@ if __name__ == "__main__":
     )
     bpe_tokenizer.load_checkpoint()
 
+    total_chunks = 0
     with open(input_file) as f:
-        text = f.read()
+        for line in f:
+            total_chunks += 1
 
-    tokens = bpe_tokenizer.encode(text)
+    with open(input_file) as f:
+        tokens = bpe_tokenizer.encode_iterable(f, total=total_chunks)
 
-    tokens_np = np.array(tokens, dtype=np.uint16)
+        tokens_np = np.array(list(tokens), dtype=np.uint16)
 
     np.save(output_file, tokens_np)

@@ -58,9 +58,18 @@ class BPETokenizer:
             tuple[bytes, ...], Counter[tuple[bytes, bytes]]
         ] = {}
 
+        self._str_tuple_cache: dict[str, tuple[bytes, ...]] = {}
+        self._encode_cache: dict[str, tuple[bytes, ...]] = {}
+
     def _str_to_bytes_tuple(self, input_str: str) -> tuple[bytes, ...]:
+        if input_str in self._str_tuple_cache:
+            return self._str_tuple_cache[input_str]
+
         input_str_utf8 = input_str.encode("utf-8")
-        return tuple(bytes([el]) for el in input_str_utf8)
+        ret = tuple(bytes([el]) for el in input_str_utf8)
+        self._str_tuple_cache[input_str] = ret
+
+        return ret
 
     def _token_pairs(
         self, pretoken: tuple[bytes, ...], use_cache: bool = False
@@ -83,7 +92,7 @@ class BPETokenizer:
             found_special_tokens = re.findall(split_regex, chunk)
 
         split = re.split(split_regex, chunk)
-        for i, doc in tqdm(enumerate(split), desc="Processing text chunks", total=len(split)):
+        for i, doc in enumerate(split):
             for pre_token in re.finditer(PRETOKENIZER_PAT, doc):
                 yield pre_token.group()
             if i < len(found_special_tokens):
@@ -403,11 +412,17 @@ class BPETokenizer:
         return ret
 
     def _encode_pretoken(self, token: str) -> tuple[bytes, ...]:
+        if token in self._encode_cache:
+            return self._encode_cache[token]
+
         if self.special_tokens and token in self.special_tokens:
-            return (b"".join(self._str_to_bytes_tuple(token)),)
+            special_ret = (b"".join(self._str_to_bytes_tuple(token)),)
+            self._encode_cache[token] = special_ret
+
+            return special_ret
 
         ret = self._str_to_bytes_tuple(token)
-        pairs = self._token_pairs(ret)
+        pairs = self._token_pairs(ret, use_cache=True)
 
         def find_next_pair(pairs):
             ret_ord, ret_pair = None, None
@@ -426,8 +441,10 @@ class BPETokenizer:
         merge_pair = find_next_pair(pairs)
         while merge_pair:
             ret, _ = self._merge_pretoken(ret, merge_pair)
-            pairs = self._token_pairs(ret)
+            pairs = self._token_pairs(ret, use_cache=True)
             merge_pair = find_next_pair(pairs)
+
+        self._encode_cache[token] = ret
 
         return ret
 
@@ -441,8 +458,12 @@ class BPETokenizer:
 
         return ret
 
-    def encode_iterable(self, text_stream: Iterable[str]) -> Iterator[int]:
-        for text in text_stream:
+    def encode_iterable(
+        self, text_stream: Iterable[str], total: Optional[int] = None
+    ) -> Iterator[int]:
+        for text in tqdm(
+            text_stream, desc="Processing text chunks", total=total
+        ):
             for pretoken in self._pretokenize_chunk_with_special(text):
                 encoded_pretoken = self._encode_pretoken(pretoken)
                 for word in encoded_pretoken:

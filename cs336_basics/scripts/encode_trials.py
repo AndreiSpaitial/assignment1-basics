@@ -28,13 +28,20 @@ if __name__ == "__main__":
         with open(input_file) as f:
             text = f.read()
 
-        encoding_start = time.time()
-        tokens = bpe_tokenizer.encode(text)
-        encoding_end = time.time()
-
-        encoding_time = encoding_end - encoding_start
+        total_chunks = 0
+        with open(input_file) as f:
+            for _ in f:
+                total_chunks += 1
 
         raw_bytes = len(text.encode("utf-8"))
+        with open(input_file) as f:
+            encoding_start = time.time()
+            tokens = bpe_tokenizer.encode_iterable(f, total=total_chunks)
+            tokens = list(tokens)
+            encoding_end = time.time()
+
+            encoding_time = encoding_end - encoding_start
+
         compression_ratio = raw_bytes / len(tokens)
 
         compression_througput = raw_bytes/encoding_time
