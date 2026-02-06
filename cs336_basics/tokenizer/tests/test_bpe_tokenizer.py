@@ -1262,3 +1262,34 @@ def test_bpe_load_checkpoint():
 
         assert bpe_tokenizer.merges == EXPECTED_MERGES
         assert bpe_tokenizer.dictionary == EXPECTED_VOCAB
+
+
+def test_bpe_tokenizer():
+    bpe_tokenizer = BPETokenizer(
+        special_tokens=SPECIAL_TOKENS, num_processes=10
+    )
+
+    n = len(bpe_tokenizer.dictionary)
+    bpe_tokenizer.load_state_dict({
+        "merges": [(b'x', b'y'), (b' ', b'xy')],
+        "dictionary": {
+            n: b'xy',
+            n+1: b' xy',
+            **bpe_tokenizer.dictionary
+        }
+    })
+
+    expected_encoding = [
+        bpe_tokenizer._dictionary_rev[c.encode("utf-8")] for c in "the cat"
+    ]
+    actual_encoding = bpe_tokenizer.encode("the cat")
+    assert actual_encoding == expected_encoding
+
+    actual_encoding = bpe_tokenizer.encode("the cat xyc xythxy")
+
+    c_index = bpe_tokenizer._dictionary_rev["c".encode("utf-8")]
+    t_index = bpe_tokenizer._dictionary_rev["t".encode("utf-8")]
+    h_index = bpe_tokenizer._dictionary_rev["h".encode("utf-8")]
+
+    expected_encoding.extend([n+1, c_index, n+1, t_index, h_index, n])
+    assert actual_encoding == expected_encoding
