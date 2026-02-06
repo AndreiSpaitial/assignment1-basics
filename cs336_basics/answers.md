@@ -55,8 +55,8 @@ TinyStoriesEncoder:
   * OWT: 3.460905349794239 bytes/token
 
 OWTEncoder:
-  * TinyStories:
-  * OWT:
+  * TinyStories: 3.9479884418759723 bytes/token
+  * OWT: 4.454020221473279 bytes/token
 
 
 (b) What happens if you tokenize your OpenWebText sample with the TinyStories tokenizer? Com-
@@ -67,8 +67,8 @@ TinyStoriesEncoder is less efficient at compressing OWT. (3.46 bytes/token vs 4.
 (c) Estimate the throughput of your tokenizer (e.g., in bytes/second). How long would it take to
 tokenize the Pile dataset (825GB of text)?
 
-TinyStories: 760 bytes/second -> 14 days for Pile
-OWT:
+TinyStories: 30M bytes/second -> 7 Hours for Pile
+OWT: 
 
 (d) Using your TinyStories and OpenWebText tokenizers, encode the respective training and devel-
 opment datasets into a sequence of integer token IDs. We’ll use this later to train our language
@@ -76,3 +76,7 @@ model. We recommend serializing the token IDs as a NumPy array of datatype uint1
 uint16 an appropriate choice?
 
 uint16 is fine because it is big enough to represent all our token ids ints (up to 32_000)
+
+TODO: run the encodings and save
+
+`uv run cs336_basics/scripts/encoder.py cs336_basics/tokenizer/checkpoints/tinystories data/TinyStoriesV2-GPT4-train.txt data/tokenized/tinystories_train.npy`
