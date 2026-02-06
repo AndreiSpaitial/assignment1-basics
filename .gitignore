@@ -169,3 +169,5 @@ cython_debug/
 .python-version
 
 cs336_basics/tokenizer/checkpoints/*
+
+**/.DS_Store
