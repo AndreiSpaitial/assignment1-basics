@@ -39,7 +39,7 @@ EXPECTED_MERGES = [
     (b' ', b'kabhbhkabh')
 ]
 
-SPECIAL_TOKENS = ["<|endoftext|>", "<|endofthing|>"]
+SPECIAL_TOKENS = ["<|endofthing|>", "<|endoftext|>"]
 EXPECTED_VOCAB = {i: bytes([i]) for i in range(256)}
 for tok in SPECIAL_TOKENS:
     token_utf8 = tok.encode("utf-8")

@@ -341,11 +341,16 @@ class BPETokenizer:
 
     def save_checkpoint(self) -> None:
         state_dict = self.state_dict()
-        checkpoint_dir = os.path.join(self.checkpoint_dir, "bpe_cp.pth")
+        checkpoint_dir = os.path.join(self.checkpoint_dir, f"bpe_cp_{self._i:03}.pth")
         torch.save(state_dict, checkpoint_dir)
 
     def load_checkpoint(self) -> None:
-        checkpoint_dir = os.path.join(self.checkpoint_dir, "bpe_cp.pth")
+        with os.scandir(self.checkpoint_dir) as entries:
+            # Extract names of files (ignoring directories)
+            files = (entry.name for entry in entries if entry.is_file())
+            max_cp: str | os.PathLike = max(files, default=None)
+
+        checkpoint_dir = os.path.join(self.checkpoint_dir, max_cp)
         with torch.serialization.safe_globals([defaultdict, Counter]):
             state_dict = torch.load(checkpoint_dir)
         self.load_state_dict(state_dict)
