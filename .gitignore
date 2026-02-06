@@ -167,3 +167,5 @@ cython_debug/
 *.zip
 .vscode/
 .python-version
+
+cs336_basics/tokenizer/checkpoints/*
