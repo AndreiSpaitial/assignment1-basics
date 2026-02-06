@@ -5,7 +5,7 @@ import regex as re
 import time
 from collections import defaultdict, Counter
 from itertools import pairwise
-from typing import Iterable
+from typing import Iterable, Iterator
 
 import torch
 from tqdm import tqdm
@@ -34,7 +34,7 @@ class BPETokenizer:
             self.dictionary[i] = token_utf8
             i += 1
 
-        self._dictionary_rev = {v:k for k,v in self.dictionary.items()}
+        self._dictionary_rev = {v: k for k, v in self.dictionary.items()}
 
         self.merges: list[tuple[bytes, bytes]] = []
 
@@ -60,7 +60,7 @@ class BPETokenizer:
         ret = Counter((p1, p2) for p1, p2 in pairwise(pretoken))
         return ret
 
-    def _pretokenize_chunk(self, chunk: str) -> Iterable[str]:
+    def _pretokenize_chunk(self, chunk: str) -> Iterator[str]:
         split_regex = r"\b\B"
         if self.special_tokens:
             split_regex = "|".join(re.escape(el) for el in self.special_tokens)
@@ -364,3 +364,20 @@ class BPETokenizer:
                 ret.append(self._dictionary_rev[word])
 
         return ret
+
+    def encode_iterable(self, text_stream: Iterable[str]) -> Iterator[int]:
+        for text in text_stream:
+            for pretoken in self._pretokenize_chunk(text):
+                encoded_pretoken = self._encode_pretoken(pretoken)
+                for word in encoded_pretoken:
+                    yield self._dictionary_rev[word]
+
+    def decode(self, ids: list[int]) -> str:
+        ret_l = []
+        for el in ids:
+            token = self.dictionary[el]
+            ret_l.append(token)
+
+        ret = b"".join(ret_l)
+
+        return ret.decode("utf-8", errors="replace")

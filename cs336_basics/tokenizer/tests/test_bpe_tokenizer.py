@@ -1279,13 +1279,18 @@ def test_bpe_tokenizer():
         }
     })
 
+    orig_str = "the cat"
     expected_encoding = [
-        bpe_tokenizer._dictionary_rev[c.encode("utf-8")] for c in "the cat"
+        bpe_tokenizer._dictionary_rev[c.encode("utf-8")] for c in orig_str
     ]
-    actual_encoding = bpe_tokenizer.encode("the cat")
+    actual_encoding = bpe_tokenizer.encode(orig_str)
     assert actual_encoding == expected_encoding
 
-    actual_encoding = bpe_tokenizer.encode("the cat xyc xythxy")
+    reconstructed = bpe_tokenizer.decode(actual_encoding)
+    assert reconstructed == orig_str
+
+    orig_str = "the cat xyc xythxy"
+    actual_encoding = bpe_tokenizer.encode(orig_str)
 
     c_index = bpe_tokenizer._dictionary_rev["c".encode("utf-8")]
     t_index = bpe_tokenizer._dictionary_rev["t".encode("utf-8")]
@@ -1293,3 +1298,6 @@ def test_bpe_tokenizer():
 
     expected_encoding.extend([n+1, c_index, n+1, t_index, h_index, n])
     assert actual_encoding == expected_encoding
+
+    reconstructed = bpe_tokenizer.decode(actual_encoding)
+    assert reconstructed == orig_str
