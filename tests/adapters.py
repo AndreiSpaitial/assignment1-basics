@@ -545,7 +545,7 @@ def get_tokenizer(
     vocab: dict[int, bytes],
     merges: list[tuple[bytes, bytes]],
     special_tokens: list[str] | None = None,
-) -> Any:
+) -> BPETokenizer:
     """Given a vocabulary, a list of merges, and a list of special tokens,
     return a BPE tokenizer that uses the provided vocab, merges, and special tokens.
 
@@ -599,7 +599,9 @@ def run_train_bpe(
                 Merges are ordered by order of creation.
     """
 
-    bpe_tokenizer = BPETokenizer(special_tokens=special_tokens, vocab_size=vocab_size)
+    bpe_tokenizer = BPETokenizer(
+        special_tokens=special_tokens, vocab_size=vocab_size
+    )
     bpe_tokenizer.train(input_path)
 
     return bpe_tokenizer.dictionary, bpe_tokenizer.merges

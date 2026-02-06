@@ -25,14 +25,18 @@ class BPETokenizer:
             checkpoint_dir: str | os.PathLike = "",
             ):
         self.special_tokens = special_tokens
+        if self.special_tokens:
+            self.special_tokens.sort(key=lambda x: -len(x))
+
         self.dictionary: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
         self.checkpoint_dir = checkpoint_dir
 
         i = len(self.dictionary)
-        for el in special_tokens:
-            token_utf8 = el.encode("utf-8")
-            self.dictionary[i] = token_utf8
-            i += 1
+        if special_tokens is not None:
+            for el in special_tokens:
+                token_utf8 = el.encode("utf-8")
+                self.dictionary[i] = token_utf8
+                i += 1
 
         self._dictionary_rev = {v: k for k, v in self.dictionary.items()}
 
@@ -60,8 +64,21 @@ class BPETokenizer:
         ret = Counter((p1, p2) for p1, p2 in pairwise(pretoken))
         return ret
 
+    def _pretokenize_chunk_with_special(self, chunk: str) -> Iterator[str]:
+        split_regex = r"\b\B"  # non-match regex
+        found_special_tokens = []
+        if self.special_tokens:
+            split_regex = "|".join(re.escape(el) for el in self.special_tokens)
+            found_special_tokens = re.findall(split_regex, chunk)
+
+        for i, doc in enumerate(re.split(split_regex, chunk)):
+            for pre_token in re.finditer(PRETOKENIZER_PAT, doc):
+                yield pre_token.group()
+            if i < len(found_special_tokens):
+                yield found_special_tokens[i]
+
     def _pretokenize_chunk(self, chunk: str) -> Iterator[str]:
-        split_regex = r"\b\B"
+        split_regex = r"\b\B"  # non-match regex
         if self.special_tokens:
             split_regex = "|".join(re.escape(el) for el in self.special_tokens)
 
@@ -350,6 +367,9 @@ class BPETokenizer:
         return ret
 
     def _encode_pretoken(self, token: str) -> tuple[bytes, ...]:
+        if self.special_tokens and token in self.special_tokens:
+            return (b"".join(self._str_to_bytes_tuple(token)),)
+
         ret = self._str_to_bytes_tuple(token)
         for merge in self.merges:
             ret, _ = self._merge_pretoken(ret, merge)
@@ -358,7 +378,8 @@ class BPETokenizer:
 
     def encode(self, text: str) -> list[int]:
         ret = []
-        for pretoken in self._pretokenize_chunk(text):
+
+        for pretoken in self._pretokenize_chunk_with_special(text):
             encoded_pretoken = self._encode_pretoken(pretoken)
             for word in encoded_pretoken:
                 ret.append(self._dictionary_rev[word])
@@ -367,7 +388,7 @@ class BPETokenizer:
 
     def encode_iterable(self, text_stream: Iterable[str]) -> Iterator[int]:
         for text in text_stream:
-            for pretoken in self._pretokenize_chunk(text):
+            for pretoken in self._pretokenize_chunk_with_special(text):
                 encoded_pretoken = self._encode_pretoken(pretoken)
                 for word in encoded_pretoken:
                     yield self._dictionary_rev[word]
