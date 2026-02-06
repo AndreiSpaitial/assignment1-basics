@@ -5,7 +5,7 @@ import regex as re
 import time
 from collections import defaultdict, Counter
 from itertools import pairwise
-from typing import Iterable, Iterator
+from typing import Iterable, Iterator, Optional
 
 import torch
 from tqdm import tqdm
@@ -254,7 +254,7 @@ class BPETokenizer:
         return True
 
     def train(
-        self, file_name: str | os.PathLike, save_every: int = 500
+        self, file_name: str | os.PathLike, save_every: Optional[int] = None
     ) -> None:
         if self._i == 0:
             start_time = time.time()
@@ -297,7 +297,7 @@ class BPETokenizer:
                 pbar.update(1)
                 self._i += 1
 
-                if self._i % save_every == 0:
+                if save_every and self._i % save_every == 0:
                     self.save_checkpoint()
 
         end_time = time.time()
