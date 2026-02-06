@@ -93,7 +93,7 @@ class BPETokenizer:
         if self.special_tokens:
             split_regex = "|".join(re.escape(el) for el in self.special_tokens)
 
-        for doc in re.split(split_regex, chunk):
+        for doc in tqdm(re.split(split_regex, chunk), desc="Processing chunk documents"):
             for pre_token in re.finditer(PRETOKENIZER_PAT, doc):
                 yield pre_token.group()
 
@@ -122,8 +122,10 @@ class BPETokenizer:
             f.seek(start)
             chunk = f.read(end - start).decode("utf-8", errors="ignore")
             # Run pre-tokenization on your chunk and store the counts for each pre-token
-
+            print("Chunk reading finished")
             return self._process_pretoken_chunks(chunk)
+
+        print("Chunk finished pretokenizing")
 
     def _pretokenize(self, file_name) -> None:
         if len(self._pretoken_freqs) > 0 and len(self._pairs_cache) > 0:
@@ -138,7 +140,7 @@ class BPETokenizer:
             # The following is a serial implementation, but you can parallelize this
             # by sending each start/end pair to a set of processes.
 
-        with multiprocessing.Pool(processes=self.num_processes) as pool:
+        with multiprocessing.Pool(processes=32) as pool:
             # map blocks until all results are ready
             results = pool.starmap(
                 self._process_chunk,

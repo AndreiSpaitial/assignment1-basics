@@ -40,5 +40,5 @@ These are just the first two bytes of "は", and they don't make sense without t
 
 ## Problem (train_bpe_tinystories): BPE Training on TinyStories
 
-(a) 
+(a) ' responsibility', and it makes sense
 (b) Pre-tokenising the raw corpus takes the longest
