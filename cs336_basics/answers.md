@@ -38,4 +38,7 @@ Example: "'hello! こんにちは!'", and it fails because it doesn't properly h
 These are just the first two bytes of "は", and they don't make sense without the third byte
 
 
+## Problem (train_bpe_tinystories): BPE Training on TinyStories
 
+(a) 
+(b) Pre-tokenising the raw corpus takes the longest

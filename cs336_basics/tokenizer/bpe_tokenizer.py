@@ -54,14 +54,25 @@ class BPETokenizer:
 
         self._i = 0
 
+        self._pretoken_pairs_cache: dict[
+            tuple[bytes, ...], Counter[tuple[bytes, bytes]]
+        ] = {}
+
     def _str_to_bytes_tuple(self, input_str: str) -> tuple[bytes, ...]:
         input_str_utf8 = input_str.encode("utf-8")
         return tuple(bytes([el]) for el in input_str_utf8)
 
     def _token_pairs(
-        self, pretoken: tuple[bytes, ...]
+        self, pretoken: tuple[bytes, ...], use_cache: bool = False
     ) -> Counter[tuple[bytes, bytes]]:
+        if use_cache and pretoken in self._pretoken_pairs_cache:
+            return self._pretoken_pairs_cache[pretoken]
+
         ret = Counter((p1, p2) for p1, p2 in pairwise(pretoken))
+
+        if use_cache:
+            self._pretoken_pairs_cache[pretoken] = ret
+
         return ret
 
     def _pretokenize_chunk_with_special(self, chunk: str) -> Iterator[str]:
@@ -97,7 +108,7 @@ class BPETokenizer:
 
         for pretoken_str in self._pretokenize_chunk(chunk):
             pretoken = self._str_to_bytes_tuple(pretoken_str)
-            pairs = self._token_pairs(pretoken)
+            pairs = self._token_pairs(pretoken, use_cache=True)
 
             for pair, freq in pairs.items():
                 pairs_cache[pair][pretoken] = freq
@@ -153,7 +164,7 @@ class BPETokenizer:
             self, pretoken: tuple[bytes, ...], pair: tuple[bytes, bytes]
             ) -> tuple[tuple[bytes, ...], Counter[tuple[bytes, bytes]]]:
         i = 0
-        pairs = self._token_pairs(pretoken)
+        pairs = Counter({**self._token_pairs(pretoken, use_cache=True)})
 
         merged_pair = pair[0] + pair[1]
         while i < len(pretoken)-1:
@@ -203,13 +214,13 @@ class BPETokenizer:
         pretokens = pairs_cache.pop(max_pair)
         for pretoken in pretokens:
             pretoken_freq = pretoken_freqs.pop(pretoken)
-            pairs = self._token_pairs(pretoken)
+            pairs = self._token_pairs(pretoken, use_cache=True)
 
             # print(f"{pretoken=:}")
             new_pretoken, new_pairs = self._merge_pretoken(pretoken, max_pair)
             pretoken_freqs[new_pretoken] = pretoken_freq
             # TODO: heapify this with heap replace
-            for pair,freq in pairs.items():
+            for pair, freq in pairs.items():
                 # print(f"pairs cache {pair}", pairs_cache[pair])
                 if pair != max_pair:
                     pairs_cache[pair].pop(pretoken)
@@ -231,14 +242,14 @@ class BPETokenizer:
                 else:
                     pairs_freqs_lookup.pop(pair)
                 # print(f"pairs_freqs[{pair}]={pairs_freqs[pair]}")
-            
+
             merged_pair = max_pair[0] + max_pair[1]
             for new_pair, freq in new_pairs.items():
                 pairs_cache[new_pair][new_pretoken] = freq
                 if new_pair in pairs:
                     continue
                 new_pair_freq = freq * pretoken_freq
-                
+
                 entry = pairs_freqs_lookup.get(new_pair, [0, new_pair, True])
                 entry[-1] = False
                 new_entry = [entry[0]+new_pair_freq, new_pair, True]
@@ -261,7 +272,7 @@ class BPETokenizer:
             self._pretokenize(file_name)
             end_time = time.time()
 
-            # print(f"Pre-tokenization done in {(end_time-start_time)}s")
+            print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
             pairs_freqs: list[
                 tuple[tuple[bytes, bytes], int, bool]
@@ -341,7 +352,7 @@ class BPETokenizer:
 
     def save_checkpoint(self) -> None:
         state_dict = self.state_dict()
-        checkpoint_dir = os.path.join(self.checkpoint_dir, f"bpe_cp_{self._i:03}.pth")
+        checkpoint_dir = os.path.join(self.checkpoint_dir, f"bpe_cp_{self._i:06}.pth")
         torch.save(state_dict, checkpoint_dir)
 
     def load_checkpoint(self) -> None:
