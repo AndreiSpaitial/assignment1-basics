@@ -6,6 +6,7 @@ import time
 from collections import defaultdict, Counter
 from itertools import pairwise
 
+import torch
 from tqdm import tqdm
 
 from cs336_basics.pretokenization_example import find_chunk_boundaries
@@ -20,9 +21,12 @@ class BPETokenizer:
             special_tokens: list[str],
             vocab_size: int = 50_000,
             num_processes: int = 4,
+            checkpoint_dir: str | os.PathLike = "",
             ):
         self.special_tokens = special_tokens
         self.dictionary: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
+        self.checkpoint_dir = checkpoint_dir
+
         i = len(self.dictionary)
         for el in special_tokens:
             token_utf8 = el.encode("utf-8")
@@ -43,6 +47,8 @@ class BPETokenizer:
             tuple[bytes, bytes], Counter[tuple[bytes]]
         ] = {}
         self._pretoken_freqs: Counter[tuple[bytes]] = Counter()
+
+        self._i = 0
 
     def _str_to_bytes_tuple(self, input_str: str) -> tuple[bytes, ...]:
         input_str_utf8 = input_str.encode("utf-8")
@@ -227,39 +233,52 @@ class BPETokenizer:
 
         return True
 
-    def train(self, file_name: str | os.PathLike) -> None:
-        start_time = time.time()
-        self._pretokenize(file_name)
-        end_time = time.time()
+    def train(
+        self, file_name: str | os.PathLike, save_every: int = 500
+    ) -> None:
+        if self._i == 0:
+            start_time = time.time()
+            self._pretokenize(file_name)
+            end_time = time.time()
 
-        # print(f"Pre-tokenization done in {(end_time-start_time)}s")
+            # print(f"Pre-tokenization done in {(end_time-start_time)}s")
 
-        pairs_freqs: list[tuple[tuple[bytes, bytes], int, bool]] = self._pairs_freqs
-        pairs_freq_ct: Counter[tuple[bytes, bytes]] = Counter()
-        for pair, pretokens in self._pairs_cache.items():
-            for pretoken, pretoken_pair_freq in pretokens.items():
-                freq = self._pretoken_freqs[pretoken]
-                pairs_freq_ct[pair] += freq*pretoken_pair_freq
+            pairs_freqs: list[
+                tuple[tuple[bytes, bytes], int, bool]
+            ] = self._pairs_freqs
+            pairs_freq_ct: Counter[tuple[bytes, bytes]] = Counter()
+            for pair, pretokens in self._pairs_cache.items():
+                for pretoken, pretoken_pair_freq in pretokens.items():
+                    freq = self._pretoken_freqs[pretoken]
+                    pairs_freq_ct[pair] += freq*pretoken_pair_freq
 
-        pairs_freqs_lookup = self._pairs_freqs_lookup
+            for tup, freq in pairs_freq_ct.items():
+                entry = [freq, tup, True]
+                pairs_freqs.append(entry)
+            heapq._heapify_max(pairs_freqs)
 
-        for tup,freq in pairs_freq_ct.items():
-            entry = [freq, tup, True]
-            pairs_freqs_lookup[tup] = entry
-            pairs_freqs.append(entry)
+            self._pairs_freqs = pairs_freqs
 
-        heapq._heapify_max(pairs_freqs)
+        pairs_freqs_lookup: dict[tuple[bytes, bytes], list[object]] = {}
+        for entry in self._pairs_freqs:
+            _, tup, pres = entry
+            if pres:
+                pairs_freqs_lookup[tup] = entry
+        self._pairs_freqs_lookup = pairs_freqs_lookup
 
-        i = 0
         found_pair = True
         start_time = time.time()
-        with tqdm(total=self.vocab_size) as pbar:
+        with tqdm(initial=self._i, total=self.vocab_size) as pbar:
             while found_pair and len(self.dictionary) < self.vocab_size:
                 found_pair = self._merge()
 
                 # print(pairs_freqs)
                 # print("£££\n"*3)
                 pbar.update(1)
+                self._i += 1
+
+                if self._i % save_every == 0:
+                    self.save_checkpoint()
 
         end_time = time.time()
 
@@ -273,7 +292,34 @@ class BPETokenizer:
         return ret
 
     def state_dict(self) -> dict:
-        return {}
+        return {
+            "special_tokens": self.special_tokens,
+            "dictionary": self.dictionary,
+            "merges": self.merges,
+            "pairs_freqs": self._pairs_freqs,
+            "pairs_cache": self._pairs_cache,
+            "pretoken_freqs": self._pretoken_freqs,
+            "token_pairs_cache": self._token_pairs_cache,
+            "i": self._i,
+        }
 
     def load_state_dict(self, new_dict) -> None:
-        pass
+        self.special_tokens = new_dict["special_tokens"]
+        self.dictionary = new_dict["dictionary"]
+        self.merges = new_dict["merges"]
+        self._pairs_freqs = new_dict["pairs_freqs"]
+        self._pairs_cache = new_dict["pairs_cache"]
+        self._pretoken_freqs = new_dict["pretoken_freqs"]
+        self._token_pairs_cache = new_dict["token_pairs_cache"]
+        self._i = new_dict["i"]
+
+    def save_checkpoint(self) -> None:
+        state_dict = self.state_dict()
+        checkpoint_dir = os.path.join(self.checkpoint_dir, "bpe_cp.pth")
+        torch.save(state_dict, checkpoint_dir)
+
+    def load_checkpoint(self) -> None:
+        checkpoint_dir = os.path.join(self.checkpoint_dir, "bpe_cp.pth")
+        with torch.serialization.safe_globals([defaultdict, Counter]):
+            state_dict = torch.load(checkpoint_dir)
+        self.load_state_dict(state_dict)

@@ -1,3 +1,4 @@
+import tempfile
 from functools import partial
 
 from collections import Counter, defaultdict
@@ -9,8 +10,8 @@ def _reverse_pair_index(token_to_pairs):
     ret = defaultdict(Counter)
     for pretoken, pairs in token_to_pairs.items():
         for pair, freq in pairs.items():
-            ret[pair][pretoken]=freq
-    
+            ret[pair][pretoken] = freq
+
     return ret
 
 
@@ -44,7 +45,7 @@ for tok in SPECIAL_TOKENS:
     token_utf8 = tok.encode("utf-8")
     EXPECTED_VOCAB[len(EXPECTED_VOCAB)] = token_utf8
 
-for b1,b2 in EXPECTED_MERGES:
+for b1, b2 in EXPECTED_MERGES:
     EXPECTED_VOCAB[len(EXPECTED_VOCAB)] = b1+b2
 
 EXPECTED_STATES = [
@@ -1166,48 +1167,98 @@ EXPECTED_STATES = [
 ]
 
 
-def _mock_merge(i_ptr, _old_merge, bpe_tokenizer: BPETokenizer):
-        i = i_ptr[0]
-        before = EXPECTED_STATES[i]
+class MockTestException(Exception):
+    pass
 
+
+def _mock_merge(_old_merge, throw_error_at, bpe_tokenizer: BPETokenizer):
+    i = bpe_tokenizer._i
+
+    before = EXPECTED_STATES[i]
+
+    pairs_freqs_ct = Counter(
+        {
+            tup: freq for freq, tup, pres in bpe_tokenizer._pairs_freqs if pres
+        }
+    )
+    assert pairs_freqs_ct == before["pairs_freqs"]
+    assert bpe_tokenizer._pairs_cache == before["pairs_cache"]
+    assert bpe_tokenizer._pretoken_freqs == before["pretoken_freqs"]
+
+    ret = _old_merge()
+
+    if i < len(EXPECTED_STATES)-1:
+        after = EXPECTED_STATES[i+1]
         pairs_freqs_ct = Counter(
             {
                 tup: freq for freq, tup, pres in bpe_tokenizer._pairs_freqs if pres
             }
         )
 
-        assert pairs_freqs_ct == before["pairs_freqs"]
-        assert bpe_tokenizer._pairs_cache == before["pairs_cache"]
-        assert bpe_tokenizer._pretoken_freqs == before["pretoken_freqs"]
+        assert pairs_freqs_ct == after["pairs_freqs"]
+        assert bpe_tokenizer._pairs_cache == after["pairs_cache"]
+        assert bpe_tokenizer._pretoken_freqs == after["pretoken_freqs"]
+    else:
+        assert not ret
 
-        ret = _old_merge()
+    if throw_error_at and i == throw_error_at:
+        raise MockTestException()
 
-        if i < len(EXPECTED_STATES)-1:
-            after = EXPECTED_STATES[i+1]
-            pairs_freqs_ct = Counter(
-                {
-                    tup: freq for freq, tup, pres in bpe_tokenizer._pairs_freqs if pres
-                }
-            )
-
-            assert pairs_freqs_ct == after["pairs_freqs"]
-            assert bpe_tokenizer._pairs_cache == after["pairs_cache"]
-            assert bpe_tokenizer._pretoken_freqs == after["pretoken_freqs"]
-        else:
-            assert not ret
-
-        i_ptr[0] += 1
-
-        return ret
+    return ret
 
 
 def test_bpe_step_by_step():
-    bpe_tokenizer = BPETokenizer(special_tokens=SPECIAL_TOKENS, num_processes=10)
+    bpe_tokenizer = BPETokenizer(
+        special_tokens=SPECIAL_TOKENS, num_processes=10
+    )
     _old_merge = bpe_tokenizer._merge
-    i = [0]
-    bpe_tokenizer._merge = partial(_mock_merge, i, _old_merge, bpe_tokenizer)
+    bpe_tokenizer._merge = partial(
+        _mock_merge, _old_merge, False, bpe_tokenizer
+    )
 
     bpe_tokenizer.train("cs336_basics/tokenizer/tests/data/owt_debug.txt")
 
     assert bpe_tokenizer.merges == EXPECTED_MERGES
     assert bpe_tokenizer.dictionary == EXPECTED_VOCAB
+
+
+def test_bpe_load_checkpoint():
+    with tempfile.TemporaryDirectory() as tmp:
+        bpe_tokenizer = BPETokenizer(
+            special_tokens=SPECIAL_TOKENS,
+            num_processes=10,
+            checkpoint_dir=tmp,
+        )
+
+        _old_merge = bpe_tokenizer._merge
+        save_every = 5
+        error_step = 7
+        bpe_tokenizer._merge = partial(
+            _mock_merge, _old_merge, error_step, bpe_tokenizer
+        )
+
+        try:
+            bpe_tokenizer.train(
+                "cs336_basics/tokenizer/tests/data/owt_debug.txt",
+                save_every=5
+            )
+        except MockTestException:
+            print("Mock failure happened")
+
+        bpe_tokenizer = BPETokenizer(
+            special_tokens=SPECIAL_TOKENS,
+            num_processes=10,
+            checkpoint_dir=tmp,
+        )
+        _old_merge = bpe_tokenizer._merge
+        bpe_tokenizer._merge = partial(
+            _mock_merge, _old_merge, None, bpe_tokenizer
+        )
+        bpe_tokenizer.load_checkpoint()
+        bpe_tokenizer.train(
+                "cs336_basics/tokenizer/tests/data/owt_debug.txt",
+                save_every=save_every
+            )
+
+        assert bpe_tokenizer.merges == EXPECTED_MERGES
+        assert bpe_tokenizer.dictionary == EXPECTED_VOCAB
