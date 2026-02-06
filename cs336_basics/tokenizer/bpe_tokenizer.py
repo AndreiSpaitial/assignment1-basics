@@ -82,7 +82,8 @@ class BPETokenizer:
             split_regex = "|".join(re.escape(el) for el in self.special_tokens)
             found_special_tokens = re.findall(split_regex, chunk)
 
-        for i, doc in enumerate(re.split(split_regex, chunk)):
+        split = re.split(split_regex, chunk)
+        for i, doc in tqdm(enumerate(split), desc="Processing text chunks", total=len(split)):
             for pre_token in re.finditer(PRETOKENIZER_PAT, doc):
                 yield pre_token.group()
             if i < len(found_special_tokens):
@@ -167,6 +168,8 @@ class BPETokenizer:
             ) -> tuple[tuple[bytes, ...], Counter[tuple[bytes, bytes]]]:
         i = 0
         pairs = Counter({**self._token_pairs(pretoken, use_cache=True)})
+        if pair not in pairs:
+            return pretoken, pairs
 
         merged_pair = pair[0] + pair[1]
         while i < len(pretoken)-1:
@@ -315,6 +318,8 @@ class BPETokenizer:
 
         end_time = time.time()
 
+        self.merges2ord = {tok: i for i, tok in enumerate(self.merges)}
+
         print(f"Merging done in {(end_time-start_time)}s")
 
     def state_dict(self, full=True) -> dict:
@@ -343,7 +348,8 @@ class BPETokenizer:
 
         self.dictionary = new_dict["dictionary"]
         self.merges = new_dict["merges"]
-        self._dictionary_rev = {v:k for k,v in self.dictionary.items()}
+        self.merges2ord = {tok: i for i, tok in enumerate(self.merges)}
+        self._dictionary_rev = {v: k for k, v in self.dictionary.items()}
 
         # load training state if present
         if "pairs_freqs" in new_dict:
@@ -354,8 +360,17 @@ class BPETokenizer:
 
     def save_checkpoint(self) -> None:
         state_dict = self.state_dict()
+        with os.scandir(self.checkpoint_dir) as entries:
+            # Extract names of files (ignoring directories)
+            files = (entry.name for entry in entries if entry.is_file())
+            max_cp: str | os.PathLike = max(files, default=None)
+
         checkpoint_dir = os.path.join(self.checkpoint_dir, f"bpe_cp_{self._i:06}.pth")
+
         torch.save(state_dict, checkpoint_dir)
+        if max_cp is not None:
+            previous_cp = os.path.join(self.checkpoint_dir, max_cp)
+            os.remove(previous_cp)
 
     def load_checkpoint(self) -> None:
         with os.scandir(self.checkpoint_dir) as entries:
@@ -364,9 +379,12 @@ class BPETokenizer:
             max_cp: str | os.PathLike = max(files, default=None)
 
         checkpoint_dir = os.path.join(self.checkpoint_dir, max_cp)
+        print(f"Loading checkpoint from {checkpoint_dir}")
         with torch.serialization.safe_globals([defaultdict, Counter]):
             state_dict = torch.load(checkpoint_dir)
         self.load_state_dict(state_dict)
+
+        print("Checkpoint loading finished")
 
     @staticmethod
     def from_files(
@@ -389,8 +407,27 @@ class BPETokenizer:
             return (b"".join(self._str_to_bytes_tuple(token)),)
 
         ret = self._str_to_bytes_tuple(token)
-        for merge in self.merges:
-            ret, _ = self._merge_pretoken(ret, merge)
+        pairs = self._token_pairs(ret)
+
+        def find_next_pair(pairs):
+            ret_ord, ret_pair = None, None
+            for pair in pairs:
+                if pair not in self.merges2ord:
+                    continue
+                if ret_ord is None:
+                    ret_ord, ret_pair = self.merges2ord[pair], pair
+
+                ret_ord, ret_pair = min(
+                    (ret_ord, ret_pair), (self.merges2ord[pair], pair)
+                )
+
+            return ret_pair
+
+        merge_pair = find_next_pair(pairs)
+        while merge_pair:
+            ret, _ = self._merge_pretoken(ret, merge_pair)
+            pairs = self._token_pairs(ret)
+            merge_pair = find_next_pair(pairs)
 
         return ret
 

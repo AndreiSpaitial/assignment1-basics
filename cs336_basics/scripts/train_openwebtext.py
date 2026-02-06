@@ -9,6 +9,7 @@ if __name__ == "__main__":
         vocab_size=32_000,
     )
 
+    bpe_tokenizer.load_checkpoint()
     bpe_tokenizer.train(
         "data/owt_train.txt",
         save_every=5000,

@@ -42,3 +42,37 @@ These are just the first two bytes of "は", and they don't make sense without t
 
 (a) ' responsibility', and it makes sense
 (b) Pre-tokenising the raw corpus takes the longest
+
+
+## Tokenizer experiments
+
+(a) Sample 10 documents from TinyStories and OpenWebText. Using your previously-trained TinyS-
+tories and OpenWebText tokenizers (10K and 32K vocabulary size, respectively), encode these
+sampled documents into integer IDs. What is each tokenizer’s compression ratio (bytes/token)?
+
+TinyStoriesEncoder:
+  * TinyStories: 4.086 bytes/token
+  * OWT: 3.460905349794239 bytes/token
+
+OWTEncoder:
+  * TinyStories:
+  * OWT:
+
+
+(b) What happens if you tokenize your OpenWebText sample with the TinyStories tokenizer? Com-
+pare the compression ratio and/or qualitatively describe what happens.
+
+TinyStoriesEncoder is less efficient at compressing OWT. (3.46 bytes/token vs 4.086 bytes/token)
+
+(c) Estimate the throughput of your tokenizer (e.g., in bytes/second). How long would it take to
+tokenize the Pile dataset (825GB of text)?
+
+TinyStories: 760 bytes/second -> 14 days for Pile
+OWT:
+
+(d) Using your TinyStories and OpenWebText tokenizers, encode the respective training and devel-
+opment datasets into a sequence of integer token IDs. We’ll use this later to train our language
+model. We recommend serializing the token IDs as a NumPy array of datatype uint16. Why is
+uint16 an appropriate choice?
+
+uint16 is fine because it is big enough to represent all our token ids ints (up to 32_000)
