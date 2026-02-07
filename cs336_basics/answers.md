@@ -58,12 +58,12 @@ tories and OpenWebText tokenizers (10K and 32K vocabulary size, respectively), e
 sampled documents into integer IDs. What is each tokenizer’s compression ratio (bytes/token)?
 
 TinyStoriesEncoder:
-  * TinyStories: 4.086 bytes/token
-  * OWT: 3.460905349794239 bytes/token
+  * TinyStories: 2.08 bytes/token
+  * OWT: 1.7 bytes/token
 
 OWTEncoder:
-  * TinyStories: 3.9479884418759723 bytes/token
-  * OWT: 4.454020221473279 bytes/token
+  * TinyStories: 1.95 bytes/token
+  * OWT: 2.15 bytes/token
 
 
 (b) What happens if you tokenize your OpenWebText sample with the TinyStories tokenizer? Com-
@@ -84,6 +84,4 @@ uint16 an appropriate choice?
 
 uint16 is fine because it is big enough to represent all our token ids ints (up to 32_000)
 
-TODO: run the encodings and save
-
-`uv run cs336_basics/scripts/encoder.py cs336_basics/tokenizer/checkpoints/tinystories data/TinyStoriesV2-GPT4-train.txt data/tokenized/tinystories_train.npy`
+`uv run cs336_basics/scripts/encoder.py cs336_basics/tokenizer/checkpoints/openwebtext/ data/owt_train.txt data/tokenized/owt_train.npy`
