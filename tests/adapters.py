@@ -13,7 +13,7 @@ from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer.linear import LinearLayer
 from cs336_basics.transformer.embedding import Embedding
 from cs336_basics.transformer.rmsnorm import RMSNorm
-from cs336_basics.transformer.functional import silu
+from cs336_basics.transformer.functional import silu, softmax
 from cs336_basics.transformer.ffn import SwiGLU
 from cs336_basics.transformer.positional import ROPE
 
@@ -472,7 +472,8 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(
