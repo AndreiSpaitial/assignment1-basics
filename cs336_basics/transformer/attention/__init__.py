@@ -1,1 +1,2 @@
 from .masked_attention import masked_attention
+from .multihead_attention import MultiheadAttention

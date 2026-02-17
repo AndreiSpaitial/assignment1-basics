@@ -23,7 +23,7 @@ def masked_attention(
     )
     Q_T /= math.sqrt(d_k)
     if mask is not None:
-        Q_T[~mask] = -torch.inf
+        Q_T[..., ~mask] = -torch.inf
 
     Q_T = softmax(Q_T, dim=-1)
     ret = einsum(
