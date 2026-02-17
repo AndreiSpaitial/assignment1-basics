@@ -25,14 +25,19 @@ class MultiheadAttention(nn.Module):
 
         self.heads = heads
         d_k = d_v = d_model // heads
+        self.d_k = d_k
+        self.d_v = d_v
 
         self.rope: Callable = lambda x, *args, **kwargs: x
         if theta is not None:
             self.rope = ROPE(theta, d_k, max_seq_len=128)
 
-        self.W_Q = LinearLayer(d_model, heads * d_k, device, dtype)
-        self.W_K = LinearLayer(d_model, heads * d_k, device, dtype)
-        self.W_V = LinearLayer(d_model, heads * d_v, device, dtype)
+        self.W_QKV = LinearLayer(
+            d_model,
+            heads * (d_k + d_k + d_v),
+            device,
+            dtype
+        )
         self.W_0 = LinearLayer(heads * d_v, d_model, device, dtype)
 
     def forward(
@@ -44,7 +49,17 @@ class MultiheadAttention(nn.Module):
         if token_positions is None:
             token_positions = torch.arange(seq_len)
 
-        Q = self.W_Q(x)
+        QKV: Float[Tensor, "batch ... seq_len d_hkkv"] = self.W_QKV(x)
+        Q: Float[Tensor, "batch ... seq_len (h d_k)"] = QKV[
+            ..., :(self.heads*self.d_k)
+        ]
+        K: Float[Tensor, "batch ... seq_len (h d_k)"] = QKV[
+            ..., (self.heads*self.d_k):(2*self.heads*self.d_k)
+        ]
+        V: Float[Tensor, "batch ... seq_len (h d_v)"] = QKV[
+            ..., (2*self.heads*self.d_k):
+        ]
+
         Q = rearrange(
             Q,
             "batch ... seq_len (h d_k) -> batch ... h seq_len d_k",
@@ -52,7 +67,6 @@ class MultiheadAttention(nn.Module):
         )
         Q = self.rope(Q, token_positions)
 
-        K = self.W_K(x)
         K = rearrange(
             K,
             "batch ... seq_len (h d_k) -> batch ... h seq_len d_k",
@@ -60,7 +74,6 @@ class MultiheadAttention(nn.Module):
         )
         K = self.rope(K, token_positions)
 
-        V = self.W_V(x)
         V = rearrange(
             V,
             "batch ... seq_len (h d_v) -> batch ... h seq_len d_v",

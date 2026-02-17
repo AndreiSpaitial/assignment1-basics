@@ -6,6 +6,7 @@ from typing import IO, Any, BinaryIO
 
 import numpy.typing as npt
 import torch
+from einops import pack
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
@@ -166,14 +167,20 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
+    qkv_proj_weight, _ = pack(
+        [
+            q_proj_weight,
+            k_proj_weight,
+            v_proj_weight
+        ],
+        "* d_in"
+    )
     mha = MultiheadAttention(
         d_model,
         num_heads,
     )
     mha.load_state_dict({
-        "W_Q.W": q_proj_weight,
-        "W_K.W": k_proj_weight,
-        "W_V.W": v_proj_weight,
+        "W_QKV.W": qkv_proj_weight,
         "W_0.W": o_proj_weight,
     })
 
@@ -217,15 +224,22 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
+    qkv_proj_weight, _ = pack(
+        [
+            q_proj_weight,
+            k_proj_weight,
+            v_proj_weight
+        ],
+        "* d_in"
+    )
+
     mha = MultiheadAttention(
         d_model,
         num_heads,
         theta,
     )
     mha.load_state_dict({
-        "W_Q.W": q_proj_weight,
-        "W_K.W": k_proj_weight,
-        "W_V.W": v_proj_weight,
+        "W_QKV.W": qkv_proj_weight,
         "W_0.W": o_proj_weight,
     })
 
