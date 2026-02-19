@@ -12,6 +12,7 @@ from torch import Tensor
 
 from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer import TransformerBlock
+from cs336_basics.transformer import Transformer
 from cs336_basics.transformer.linear import LinearLayer
 from cs336_basics.transformer.embedding import Embedding
 from cs336_basics.transformer.rmsnorm import RMSNorm
@@ -368,12 +369,17 @@ def run_transformer_block(
     w2 = weights["ffn.w2.weight"]
     w3 = weights["ffn.w3.weight"]
 
+    rope = ROPE(
+        theta,
+        d_model // num_heads,
+        max_seq_len=max_seq_len
+    )
+
     transformer_block = TransformerBlock(
         d_model,
         num_heads,
         d_ff,
-        theta,
-        max_seq_len,
+        rope=rope,
     )
     transformer_block.load_state_dict({
         "mha_norm.g": g_norm_1,
@@ -469,7 +475,63 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    state_dict = {}
+    state_dict["embedding.embeddings"] = weights["token_embeddings.weight"]
+
+    for i in range(num_layers):
+        g_norm_1 = weights[f"layers.{i}.ln1.weight"]
+
+        q_proj_weight = weights[f"layers.{i}.attn.q_proj.weight"]
+        k_proj_weight = weights[f"layers.{i}.attn.k_proj.weight"]
+        v_proj_weight = weights[f"layers.{i}.attn.v_proj.weight"]
+        qkv_proj_weight, _ = pack(
+            [
+                q_proj_weight,
+                k_proj_weight,
+                v_proj_weight
+            ],
+            "* d_in"
+        )
+        w0_proj_weight = weights[f"layers.{i}.attn.output_proj.weight"]
+
+        g_norm_2 = weights[f"layers.{i}.ln2.weight"]
+
+        w1 = weights[f"layers.{i}.ffn.w1.weight"]
+        w2 = weights[f"layers.{i}.ffn.w2.weight"]
+        w3 = weights[f"layers.{i}.ffn.w3.weight"]
+
+        state_dict.update({
+            f"transformer_blocks.{i}.mha_norm.g": g_norm_1,
+            f"transformer_blocks.{i}.mha.W_QKV.W": qkv_proj_weight,
+            f"transformer_blocks.{i}.mha.W_0.W": w0_proj_weight,
+            f"transformer_blocks.{i}.ff_norm.g": g_norm_2,
+            f"transformer_blocks.{i}.ff.W1.W": w1,
+            f"transformer_blocks.{i}.ff.W2.W": w2,
+            f"transformer_blocks.{i}.ff.W3.W": w3,
+        })
+
+    state_dict["out_norm.g"] = weights["ln_final.weight"]
+    state_dict["out_projection.W"] = weights["lm_head.weight"]
+
+    rope = ROPE(
+        rope_theta,
+        d_model // num_heads,
+        max_seq_len=context_length,
+    )
+
+    transformer_lm = Transformer(
+        vocab_size,
+        num_layers,
+        d_model,
+        num_heads,
+        d_ff,
+        rope=rope,
+    )
+    transformer_lm.load_state_dict(state_dict)
+
+    x_out = transformer_lm(in_indices)
+
+    return x_out
 
 
 def run_rmsnorm(

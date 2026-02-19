@@ -6,6 +6,7 @@ from jaxtyping import Float
 
 from cs336_basics.transformer.attention import MultiheadAttention
 from cs336_basics.transformer.ffn import SwiGLU
+from cs336_basics.transformer.positional import ROPE
 from cs336_basics.transformer.rmsnorm import RMSNorm
 
 
@@ -17,6 +18,7 @@ class TransformerBlock(nn.Module):
         d_ff: int | None = None,
         theta: float | None = None,
         max_seq_len: int | None = None,
+        rope: ROPE | None = None,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -32,6 +34,7 @@ class TransformerBlock(nn.Module):
             heads,
             theta,
             max_seq_len,
+            rope,
             device,
             dtype,
         )
