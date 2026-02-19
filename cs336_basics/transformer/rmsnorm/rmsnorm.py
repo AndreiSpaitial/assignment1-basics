@@ -35,3 +35,14 @@ class RMSNorm(nn.Module):
         res = x/rms * self.g
 
         return res.to(in_dtype)
+
+    def flops(self, x: tuple[int, ...]) -> int:
+        n_tokens = 1
+
+        for d in x[:-1]:
+            n_tokens *= d
+
+        return n_tokens * x[-1]
+
+    def num_params(self):
+        return self.d_model

@@ -62,3 +62,21 @@ class TransformerBlock(nn.Module):
         x_out = self.ff(x_out)
 
         return x_1 + x_out
+
+    def flops(self, x: tuple[int, ...], detailed: bool = False) -> int:
+        mha_flops = self.mha.flops(x, detailed)
+        ffn_flops = self.ff.flops(x)
+
+        if detailed:
+            print(f"MHA flops: {mha_flops:_}")
+            print(f"FFN flops: {ffn_flops:_}")
+
+        return mha_flops + ffn_flops
+
+    def num_params(self) -> int:
+        return (
+            self.mha_norm.num_params() +
+            self.mha.num_params() +
+            self.ff_norm.num_params() +
+            self.ff.num_params()
+        )

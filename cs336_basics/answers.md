@@ -84,4 +84,111 @@ uint16 an appropriate choice?
 
 uint16 is fine because it is big enough to represent all our token ids ints (up to 32_000)
 
-`uv run cs336_basics/scripts/encoder.py cs336_basics/tokenizer/checkpoints/openwebtext/ data/owt_train.txt data/tokenized/owt_train.npy`
+## Problem (transformer_accounting): Transformer LM resource accounting (5 points)
+(a) Consider GPT-2 XL, which has the following configuration:
+vocab_size : 50,257
+context_length : 1,024
+num_layers : 48
+d_model : 1,600
+27
+num_heads : 25
+d_ff : 6,400
+Suppose we constructed our model using this configuration. How many trainable parameters
+would our model have? Assuming each parameter is represented using single-precision floating
+point, how much memory is required to just load this model?
+
+~2B parameters -> 4 * 2B bytes -> ~8GB of memory
+
+(b) Identify the matrix multiplies required to complete a forward pass of our GPT-2 XL-shaped
+model. How many FLOPs do these matrix multiplies require in total? Assume that our input
+sequence has context_length tokens.
+
+Total transformer blocks flops: 3_845_337_907_200
+Transformer output projection flops: 164_682_137_600
+Total LM 4_010_020_044_800
+Single transformer block
+In projection flops: 5_242_880_000
+Attention flops: 6_710_886_400
+ Q.T @ K flops:             3_355_443_200             
+ ROPE flops             0             
+ softmax @ V flops             3_355_443_200             
+Out projection flops: 5_242_880_000
+MHA flops: 17_196_646_400
+FFN flops: 62_914_560_000
+Total flops for transformer block: 80_111_206_400
+
+(c) Based on your analysis above, which parts of the model require the most FLOPs?
+Seems like the FFN from the transformer block.
+
+(d) Repeat your analysis with GPT-2 small (12 layers, 768 d_model, 12 heads), GPT-2 medium (24
+layers, 1024 d_model, 16 heads), and GPT-2 large (36 layers, 1280 d_model, 20 heads). As the
+model size increases, which parts of the Transformer LM take up proportionally more or less of
+the total FLOPs?
+
+GPT small:
+Total transformer blocks flops: 430_033_600_512
+Transformer output projection flops: 79_047_426_048
+Total LM 509_081_026_560
+Single transformer block
+In projection flops: 1_207_959_552
+Attention flops: 3_221_225_472
+ Q.T @ K flops:             1_610_612_736             
+ ROPE flops             0             
+ softmax @ V flops             1_610_612_736             
+Out projection flops: 1_207_959_552
+MHA flops: 5_637_144_576
+FFN flops: 30_198_988_800
+Total flops for transformer block: 35_836_133_376
+
+GPT medium:
+Total transformer blocks flops: 1_172_526_071_808
+Transformer output projection flops: 105_396_568_064
+Total LM 1_277_922_639_872
+Single transformer block
+In projection flops: 2_147_483_648
+Attention flops: 4_294_967_296
+ Q.T @ K flops:             2_147_483_648             
+ ROPE flops             0             
+ softmax @ V flops             2_147_483_648             
+Out projection flops: 2_147_483_648
+MHA flops: 8_589_934_592
+FFN flops: 40_265_318_400
+Total flops for transformer block: 48_855_252_992
+
+GPT large:
+Total transformer blocks flops: 2_246_804_766_720
+Transformer output projection flops: 131_745_710_080
+Total LM 2_378_550_476_800
+Single transformer block
+In projection flops: 3_355_443_200
+Attention flops: 5_368_709_120
+ Q.T @ K flops:             2_684_354_560             
+ ROPE flops             0             
+ softmax @ V flops             2_684_354_560             
+Out projection flops: 3_355_443_200
+MHA flops: 12_079_595_520
+FFN flops: 50_331_648_000
+Total flops for transformer block: 62_411_243_520
+
+Overall it seems the dominating operation is still the transformer block FFN, and it does not substantially decrease with lower model size. The most saved-on operation with decreasing model size is the attention operation, but it is still small compared to the FFN.
+
+
+(e) Take GPT-2 XL and increase the context length to 16,384. How does the total FLOPs for one
+forward pass change? How do the relative contribution of FLOPs of the model components
+change?
+
+Total transformer blocks flops: 138_834_817_843_200
+Transformer output projection flops: 2_634_914_201_600
+Total LM 141_469_732_044_800
+Single transformer block
+In projection flops: 83_886_080_000
+Attention flops: 1_717_986_918_400
+ Q.T @ K flops:             858_993_459_200             
+ ROPE flops             0             
+ softmax @ V flops             858_993_459_200             
+Out projection flops: 83_886_080_000
+MHA flops: 1_885_759_078_400
+FFN flops: 1_006_632_960_000
+Total flops for transformer block: 2_892_392_038_400
+
+The total number of flops went up substantially, and it seems the attention mechanism now dominates flops inside a transformer block.

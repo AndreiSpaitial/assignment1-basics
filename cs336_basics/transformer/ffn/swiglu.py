@@ -21,6 +21,9 @@ class SwiGLU(nn.Module):
             d_ff = int(math.floor(8/3 * d_model))
             d_ff = d_ff - (d_ff % 64)
 
+        self.d_model = d_model
+        self.d_ff = d_ff
+
         self.W1 = LinearLayer(d_model, d_ff, device, dtype)
         self.W3 = LinearLayer(d_model, d_ff, device, dtype)
         self.W2 = LinearLayer(d_ff, d_model, device, dtype)
@@ -32,3 +35,17 @@ class SwiGLU(nn.Module):
         glu = silu(w1_x)*w3_x
 
         return self.W2(glu)
+
+    def flops(self, x: tuple[int, ...]) -> int:
+        return (
+            self.W1.flops(x) +
+            self.W3.flops(x) +
+            self.W2.flops(x)
+        )
+
+    def num_params(self) -> int:
+        return (
+            self.W1.num_params() +
+            self.W3.num_params() +
+            self.W2.num_params()
+        )

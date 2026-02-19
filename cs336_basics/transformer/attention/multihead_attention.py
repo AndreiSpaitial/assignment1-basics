@@ -25,11 +25,13 @@ class MultiheadAttention(nn.Module):
     ):
         super(MultiheadAttention, self).__init__()
 
+        self.d_model = d_model
         self.heads = heads
         d_k = d_v = d_model // heads
         self.d_k = d_k
         self.d_v = d_v
 
+        self.use_rope = not (rope is None and theta is None)
         self.rope: Callable = lambda x, *args, **kwargs: x
         if theta is not None and rope is None:
             max_seq_len = max_seq_len or 128
@@ -94,3 +96,42 @@ class MultiheadAttention(nn.Module):
 
         ret = self.W_0(ret)
         return ret
+
+    def flops(self, x: tuple[int, ...], detailed: bool = False) -> int:
+        n_tokens = 1
+
+        for d in x[:-1]:
+            n_tokens *= d
+
+        #                                 heads * d_k == d_model
+        in_projection_flops = 2 * n_tokens * self.d_model * self.d_model
+        attention_flops = self.heads * (
+            2 * n_tokens * self.d_k * n_tokens +  # Q.T @ K
+            (2 * n_tokens * self.rope.flops() if self.use_rope else 0) +  # rope flops for Q and K
+            2 * n_tokens * n_tokens * self.d_v  # V flops
+        )
+
+        out_projection_flops = 2 * n_tokens * self.heads * self.d_v * self.d_model
+
+        if detailed:
+            print(f"In projection flops: {in_projection_flops:_}")
+            print(f"Attention flops: {attention_flops:_}")
+
+            print(f" Q.T @ K flops: \
+            {2 * self.heads * n_tokens * self.d_k * n_tokens:_} \
+            ")
+            print(f" ROPE flops \
+            {2 * self.heads * n_tokens * self.rope.flops() if self.use_rope else 0:_} \
+            ")
+            print(f" softmax @ V flops \
+            {2 * self.heads * n_tokens * n_tokens * self.d_v:_} \
+            ")
+            print(f"Out projection flops: {out_projection_flops:_}")
+
+        return in_projection_flops + attention_flops + out_projection_flops
+
+    def num_params(self) -> int:
+        params_WQKV = self.d_model * (self.heads * (2 * self.d_k + self.d_v))
+        params_W0 = self.heads * self.d_v * self.d_model
+
+        return params_WQKV + params_W0

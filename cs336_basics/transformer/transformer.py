@@ -74,3 +74,23 @@ class Transformer(nn.Module):
         x_out: Float[Tensor, "batch seq_len vocab_size"] = self.out_projection(x)
 
         return x_out
+
+    def flops(self, x: tuple[int, ...]) -> int:
+        transformer_flops = sum(
+            transformer_block.flops(x)
+            for transformer_block in self.transformer_blocks
+        )
+        print(f"Total transformer blocks flops: {transformer_flops:_}")
+        output_flops = self.out_projection.flops(x)
+        print(f"Transformer output projection flops: {output_flops:_}")
+
+        return transformer_flops + output_flops
+
+    def num_params(self) -> int:
+        return (
+            sum(
+                transformer_block.num_params()
+                for transformer_block in self.transformer_blocks
+            ) +
+            self.out_projection.num_params()
+        )

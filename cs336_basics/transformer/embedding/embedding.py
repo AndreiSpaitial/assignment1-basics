@@ -24,3 +24,11 @@ class Embedding(nn.Module):
 
     def forward(self, x: torch.LongTensor) -> torch.Tensor:
         return self.embeddings[x]
+
+    def flops(self, x: tuple[int, ...]) -> int:
+        return 0
+
+    def num_params(self):
+        num_embeddings, embedding_dim = self.embeddings.shape
+
+        return num_embeddings * embedding_dim

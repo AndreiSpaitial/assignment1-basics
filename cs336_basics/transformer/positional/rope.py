@@ -24,6 +24,8 @@ class ROPE(nn.Module):
             )
         )
 
+        self.d_k = d_k
+
         for i in range(max_seq_len):
             for k in range(d_k//2):
                 # Formula has k as 1-based
@@ -55,3 +57,13 @@ class ROPE(nn.Module):
         )
 
         return ret
+
+    def flops(self, x: tuple[int, ...]) -> int:
+        n_tokens = 1
+
+        for d in x[:-1]:
+            n_tokens *= d
+
+        flops = 2 * self.d_k // 2 * 2 * 2
+
+        return n_tokens * flops
