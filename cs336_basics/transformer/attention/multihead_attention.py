@@ -18,6 +18,7 @@ class MultiheadAttention(nn.Module):
         d_model: int,
         heads: int = 1,
         theta: float | None = None,
+        max_seq_len: int | None = None,
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
     ):
@@ -30,7 +31,8 @@ class MultiheadAttention(nn.Module):
 
         self.rope: Callable = lambda x, *args, **kwargs: x
         if theta is not None:
-            self.rope = ROPE(theta, d_k, max_seq_len=128)
+            max_seq_len = max_seq_len or 128
+            self.rope = ROPE(theta, d_k, max_seq_len=max_seq_len)
 
         self.W_QKV = LinearLayer(
             d_model,

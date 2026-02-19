@@ -11,6 +11,7 @@ from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
 from cs336_basics.tokenizer import BPETokenizer
+from cs336_basics.transformer import TransformerBlock
 from cs336_basics.transformer.linear import LinearLayer
 from cs336_basics.transformer.embedding import Embedding
 from cs336_basics.transformer.rmsnorm import RMSNorm
@@ -346,7 +347,47 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    g_norm_1 = weights["ln1.weight"]
+
+    q_proj_weight = weights["attn.q_proj.weight"]
+    k_proj_weight = weights["attn.k_proj.weight"]
+    v_proj_weight = weights["attn.v_proj.weight"]
+    qkv_proj_weight, _ = pack(
+        [
+            q_proj_weight,
+            k_proj_weight,
+            v_proj_weight
+        ],
+        "* d_in"
+    )
+    w0_proj_weight = weights["attn.output_proj.weight"]
+
+    g_norm_2 = weights["ln2.weight"]
+
+    w1 = weights["ffn.w1.weight"]
+    w2 = weights["ffn.w2.weight"]
+    w3 = weights["ffn.w3.weight"]
+
+    transformer_block = TransformerBlock(
+        d_model,
+        num_heads,
+        d_ff,
+        theta,
+        max_seq_len,
+    )
+    transformer_block.load_state_dict({
+        "mha_norm.g": g_norm_1,
+        "mha.W_QKV.W": qkv_proj_weight,
+        "mha.W_0.W": w0_proj_weight,
+        "ff_norm.g": g_norm_2,
+        "ff.W1.W": w1,
+        "ff.W2.W": w2,
+        "ff.W3.W": w3,
+    })
+
+    x_out = transformer_block(in_features)
+
+    return x_out
 
 
 def run_transformer_lm(
