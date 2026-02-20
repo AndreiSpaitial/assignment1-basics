@@ -200,4 +200,42 @@ see that in practice in our toy example. Run the SGD example above with three ot
 learning rate: 1e1, 1e2, and 1e3, for just 10 training iterations. What happens with the loss for each
 of these learning rates? Does it decay faster, slower, or does it diverge (i.e., increase over the course of
 training)?
+
 With lr=1e1 it seems the loss converges quickly to zero, whereas with 1e2 it doesn't change and with 1e3 it quickly goes to infinity.
+
+
+## Problem (adamwAccounting): Resource accounting for training with AdamW
+
+(a) How much peak memory does running AdamW require? Decompose your answer based on the
+    memory usage of the parameters, activations, gradients, and optimizer state. Express your answer
+    in terms of the batch_size and the model hyperparameters (vocab_size, context_length,
+    num_layers, d_model, num_heads). Assume d_ff = 4 ×d_model.
+    see `cs336_basics/scripts/resource_accounting.py`
+
+(b) Instantiate your answer for a GPT-2 XL-shaped model to get an expression that only depends on
+the batch_size. What is the maximum batch size you can use and still fit within 80GB memory?
+Deliverable: An expression that looks like a ·batch_size + b for numerical values a, b, and a
+number representing the maximum batch size.
+  ~ 14*batch_size + 30
+  max batch_size ~= 3
+
+(c) How many FLOPs does running one step of AdamW take?
+~ 6 x n_tokens x num_params
+  Forward pass: 2 x n_tokens x num_params
+  Backward pass: 2 x 2 x (n_tokens x num_params)
+
+(d) Model FLOPs utilization (MFU) is defined as the ratio of observed throughput (tokens per second)
+relative to the hardware’s theoretical peak FLOP throughput [Chowdhery et al., 2022]. An
+NVIDIA A100 GPU has a theoretical peak of 19.5 teraFLOP/s for float32 operations. Assuming
+you are able to get 50% MFU, how long would it take to train a GPT-2 XL for 400K steps and a
+batch size of 1024 on a single A100? Following Kaplan et al. [2020] and Hoffmann et al. [2022],
+assume that the backward pass has twice the FLOPs of the forward pass.
+
+Approx 23B params for GPT-XL
+
+batch_size = 1024
+Training FLOPs per batch: 6 * 1024 * 23B = 141T
+MFU 50% -> ~10TFLOP/s
+Training step time: 14s
+
+400K steps -> 400K * 14s -> approx 64 days
