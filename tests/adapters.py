@@ -10,7 +10,7 @@ from einops import pack
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
-from cs336_basics.optimizer import AdamW
+from cs336_basics.optimizer import AdamW, cosine_annealing
 from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer import TransformerBlock
 from cs336_basics.transformer import Transformer
@@ -681,7 +681,13 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    return cosine_annealing(
+        it,
+        max_learning_rate,
+        min_learning_rate,
+        warmup_iters,
+        cosine_cycle_iters,
+    )
 
 
 def run_save_checkpoint(
