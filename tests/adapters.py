@@ -10,13 +10,14 @@ from einops import pack
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
 
+from cs336_basics.optimizer import AdamW
 from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer import TransformerBlock
 from cs336_basics.transformer import Transformer
 from cs336_basics.transformer.linear import LinearLayer
 from cs336_basics.transformer.embedding import Embedding
 from cs336_basics.transformer.rmsnorm import RMSNorm
-from cs336_basics.transformer.functional import silu, softmax
+from cs336_basics.transformer.functional import silu, softmax, ce_loss
 from cs336_basics.transformer.ffn import SwiGLU
 from cs336_basics.transformer.positional import ROPE
 from cs336_basics.transformer.attention import masked_attention, MultiheadAttention
@@ -633,7 +634,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return ce_loss(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
@@ -652,7 +653,7 @@ def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(

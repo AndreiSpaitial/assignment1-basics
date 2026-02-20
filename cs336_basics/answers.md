@@ -192,3 +192,12 @@ FFN flops: 1_006_632_960_000
 Total flops for transformer block: 2_892_392_038_400
 
 The total number of flops went up substantially, and it seems the attention mechanism now dominates flops inside a transformer block.
+
+
+## Problem (learning_rate_tuning): Tuning the learning rate (1 point)
+As we will see, one of the hyperparameters that affects training the most is the learning rate. Let’s
+see that in practice in our toy example. Run the SGD example above with three other values for the
+learning rate: 1e1, 1e2, and 1e3, for just 10 training iterations. What happens with the loss for each
+of these learning rates? Does it decay faster, slower, or does it diverge (i.e., increase over the course of
+training)?
+With lr=1e1 it seems the loss converges quickly to zero, whereas with 1e2 it doesn't change and with 1e3 it quickly goes to infinity.
