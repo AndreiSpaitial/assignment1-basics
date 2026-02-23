@@ -41,9 +41,14 @@ class LLMDataLoader:
             x.append(self.llm_dataset[x_start:x_end])
             y.append(self.llm_dataset[(x_start+1):(x_end+1)])
 
-        self._i = (self._i + 1) % len(self._indices)
+        self._i = self._i + 1
 
         return torch.tensor(x).to(self.device), torch.tensor(y).to(self.device)
+
+    def set_for_epoch(self, epoch: int):
+        self._i = 0
+        last_ind = len(self.llm_dataset) - self.context_length
+        self._indices = torch.randperm(last_ind)
 
     def __iter__(self) -> Iterable[
         tuple[
@@ -51,5 +56,15 @@ class LLMDataLoader:
             Int16[Tensor, "b context_length"],
         ]
     ]:
-        for _ in self._indices:
+        for _ in range(self._i, len(self._indices)):
             yield self._get_batch()
+
+    def state_dict(self) -> dict:
+        return {
+            "indices": self._indices,
+            "i": self._i,
+        }
+
+    def load_state_dict(self, state_dict: dict):
+        self._indices = state_dict["indices"]
+        self._i = state_dict["i"]

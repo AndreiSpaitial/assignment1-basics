@@ -22,6 +22,7 @@ from cs336_basics.transformer.functional import silu, softmax, ce_loss
 from cs336_basics.transformer.ffn import SwiGLU
 from cs336_basics.transformer.positional import ROPE
 from cs336_basics.transformer.attention import masked_attention, MultiheadAttention
+from cs336_basics.utils import save_checkpoint, load_checkpoint
 
 
 def run_linear(
@@ -718,7 +719,7 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    save_checkpoint(model, optimizer, iteration, out)
 
 
 def run_load_checkpoint(
@@ -739,7 +740,7 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    raise NotImplementedError
+    return load_checkpoint(src, model, optimizer)
 
 
 def get_tokenizer(
