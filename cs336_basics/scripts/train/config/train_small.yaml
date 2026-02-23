@@ -5,6 +5,7 @@ checkpoint_every: 5
 epochs: 1
 eval_every: 5
 shuffle: True
+batch_size: 8
 
 rope:
   theta: 0.7853981633974483 # pi/4

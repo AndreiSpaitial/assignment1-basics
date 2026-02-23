@@ -36,13 +36,13 @@ class LLMDataLoader:
         x = []
         y = []
 
-        for i in range(self._i, self.batch_size):
+        for i in range(self._i, self._i + self.batch_size):
             x_start = self._indices[i]
             x_end = self._indices[i] + self.context_length
             x.append(self.llm_dataset[x_start:x_end])
             y.append(self.llm_dataset[(x_start+1):(x_end+1)])
 
-        self._i = self._i + 1
+        self._i = self._i + self.batch_size
 
         x = np.array(x, dtype=np.int16)
         y = np.array(y, dtype=np.int16)
@@ -60,7 +60,9 @@ class LLMDataLoader:
             Int16[Tensor, "b context_length"],
         ]
     ]:
-        for _ in range(self._i, len(self._indices)):
+        if (
+            self._i + self.batch_size - 1 + self.context_length
+        ) < len(self._indices):
             yield self._get_batch()
 
     def __next__(self) -> tuple[

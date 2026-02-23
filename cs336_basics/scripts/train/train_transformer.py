@@ -134,14 +134,17 @@ def main(
         ):
             print("training")
 
-            optimizer.zero_grad()
+            print(x)
+            print(y)
 
-            y_pred = transformer_lm(x)
-            loss = ce_loss(y_pred, y)
+            # optimizer.zero_grad()
 
-            loss.backward()
-            optimizer.step()
-            global_iter += 1
+            # y_pred = transformer_lm(x)
+            # loss = ce_loss(y_pred, y)
+
+            # loss.backward()
+            # optimizer.step()
+            # global_iter += 1
 
             if global_iter and global_iter % checkpoint_every == 0:
                 checkpoint_name = f"checkpoint_{global_iter:06}.pth"
