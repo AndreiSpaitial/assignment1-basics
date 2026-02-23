@@ -72,7 +72,7 @@ class LLMDataLoader:
         return self._get_batch()
 
     def __len__(self) -> int:
-        return len(self._indices)
+        return len(self._indices) - self.batch_size - self.context_length
 
     def state_dict(self) -> dict:
         return {
