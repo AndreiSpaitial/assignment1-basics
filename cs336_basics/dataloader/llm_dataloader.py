@@ -61,8 +61,8 @@ class LLMDataLoader:
         ]
     ]:
         while (
-            self._i + self.batch_size - 1 + self.context_length
-        ) < len(self._indices):
+            self._i + self.batch_size
+        ) <= len(self._indices):
             yield self._get_batch()
 
     def __next__(self) -> tuple[
@@ -72,7 +72,7 @@ class LLMDataLoader:
         return self._get_batch()
 
     def __len__(self) -> int:
-        return (len(self._indices) - self.context_length - 1) // self.batch_size
+        return len(self._indices) // self.batch_size
 
     def state_dict(self) -> dict:
         return {
