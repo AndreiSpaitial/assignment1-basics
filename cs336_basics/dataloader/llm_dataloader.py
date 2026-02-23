@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 
+import numpy as np
 import torch
 from torch import Tensor
 from jaxtyping import Int16
@@ -43,6 +44,9 @@ class LLMDataLoader:
 
         self._i = self._i + 1
 
+        x = np.array(x, dtype=np.int16)
+        y = np.array(y, dtype=np.int16)
+
         return torch.tensor(x).to(self.device), torch.tensor(y).to(self.device)
 
     def set_for_epoch(self, epoch: int):
@@ -58,6 +62,12 @@ class LLMDataLoader:
     ]:
         for _ in range(self._i, len(self._indices)):
             yield self._get_batch()
+
+    def __next__(self) -> tuple[
+        Int16[Tensor, "b context_length"],
+        Int16[Tensor, "b context_length"],
+    ]:
+        return self._get_batch()
 
     def state_dict(self) -> dict:
         return {

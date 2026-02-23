@@ -706,6 +706,7 @@ def run_get_lr_cosine_schedule(
 def run_save_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
+    dataloader: LLMDataLoader,
     iteration: int,
     out: str | os.PathLike | BinaryIO | IO[bytes],
 ):
@@ -719,13 +720,14 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    save_checkpoint(model, optimizer, iteration, out)
+    save_checkpoint(model, optimizer, dataloader, iteration, out)
 
 
 def run_load_checkpoint(
     src: str | os.PathLike | BinaryIO | IO[bytes],
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
+    dataloader: LLMDataLoader,
 ) -> int:
     """
     Given a serialized checkpoint (path or file-like object), restore the
@@ -740,7 +742,7 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    return load_checkpoint(src, model, optimizer)
+    return load_checkpoint(src, model, optimizer, dataloader)
 
 
 def get_tokenizer(
