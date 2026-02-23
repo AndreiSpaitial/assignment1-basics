@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterator
 
 import numpy as np
 import torch
@@ -54,7 +54,7 @@ class LLMDataLoader:
         last_ind = len(self.llm_dataset) - self.context_length
         self._indices = torch.randperm(last_ind)
 
-    def __iter__(self) -> Iterable[
+    def __iter__(self) -> Iterator[
         tuple[
             Int16[Tensor, "b context_length"],
             Int16[Tensor, "b context_length"],
@@ -68,6 +68,9 @@ class LLMDataLoader:
         Int16[Tensor, "b context_length"],
     ]:
         return self._get_batch()
+
+    def __len__(self) -> int:
+        return len(self._indices)
 
     def state_dict(self) -> dict:
         return {

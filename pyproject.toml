@@ -20,6 +20,7 @@ dependencies = [
     "wandb>=0.19.7",
     "ty>=0.0.1a16",
     "ipython>=9.10.0",
+    "typer>=0.24.1",
 ]
 
 [build-system]
