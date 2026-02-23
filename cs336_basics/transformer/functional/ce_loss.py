@@ -11,7 +11,7 @@ def ce_loss(
     reduction: str | None = "mean",
 ) -> Float[Tensor, "1"] | Float[Tensor, "..."]:
     y = rearrange(y, "... -> ... 1")
-    o -= reduce(
+    o = o - reduce(
         o, "... vocab_size -> ... 1", "max"
     )
     o_y: Float[Tensor, "... 1"] = torch.take_along_dim(o, y, -1)

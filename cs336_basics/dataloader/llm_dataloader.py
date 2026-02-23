@@ -42,10 +42,10 @@ class LLMDataLoader:
             x.append(self.llm_dataset[x_start:x_end])
             y.append(self.llm_dataset[(x_start+1):(x_end+1)])
 
-        self._i = self._i + self.batch_size
+        self._i += self.batch_size
 
-        x = np.array(x, dtype=np.int16)
-        y = np.array(y, dtype=np.int16)
+        x = np.array(x, dtype=np.int64)
+        y = np.array(y, dtype=np.int64)
 
         return torch.tensor(x).to(self.device), torch.tensor(y).to(self.device)
 
@@ -60,7 +60,7 @@ class LLMDataLoader:
             Int16[Tensor, "b context_length"],
         ]
     ]:
-        if (
+        while (
             self._i + self.batch_size - 1 + self.context_length
         ) < len(self._indices):
             yield self._get_batch()
@@ -72,7 +72,7 @@ class LLMDataLoader:
         return self._get_batch()
 
     def __len__(self) -> int:
-        return len(self._indices) - self.batch_size - self.context_length
+        return (len(self._indices) - self.context_length - 1) // self.batch_size
 
     def state_dict(self) -> dict:
         return {

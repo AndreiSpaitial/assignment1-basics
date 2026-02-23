@@ -125,26 +125,21 @@ def main(
             optimizer,
             train_data_loader,
         )
-
+    print(len(train_data_loader))
     epoch_iter = train_data_loader._i
     for epoch in range(start_epoch, epochs):
         for x, y in tqdm(
                 train_data_loader,
                 initial=epoch_iter,
         ):
-            print("training")
+            optimizer.zero_grad()
 
-            print(x)
-            print(y)
+            y_pred = transformer_lm(x)
+            loss = ce_loss(y_pred, y)
 
-            # optimizer.zero_grad()
-
-            # y_pred = transformer_lm(x)
-            # loss = ce_loss(y_pred, y)
-
-            # loss.backward()
-            # optimizer.step()
-            # global_iter += 1
+            loss.backward()
+            optimizer.step()
+            global_iter += 1
 
             if global_iter and global_iter % checkpoint_every == 0:
                 checkpoint_name = f"checkpoint_{global_iter:06}.pth"
