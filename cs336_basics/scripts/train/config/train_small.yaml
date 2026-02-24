@@ -3,7 +3,7 @@ eval_path: data/tokenized/tinystories_valid.npy
 checkpoint_dir: cs336_basics/scripts/train/checkpoints/
 checkpoint_every: 50
 epochs: 1
-eval_every: 5
+eval_every: 75
 shuffle: True
 batch_size: 8
 

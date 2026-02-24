@@ -12,7 +12,7 @@ from cs336_basics.dataloader import LLMDataset, LLMDataLoader
 from cs336_basics.optimizer import AdamW, cosine_annealing, gradient_clipping
 from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer import Transformer
-from cs336_basics.transformer.functional import ce_loss
+from cs336_basics.transformer.functional import ce_loss, perplexity
 from cs336_basics.transformer.positional import ROPE
 from cs336_basics.utils import save_checkpoint, load_checkpoint
 
@@ -87,6 +87,23 @@ def make_optimizer(train_conf: dict) -> dict:
     return kw_args
 
 
+def compute_val_loss(
+    model: Transformer, eval_dataset: LLMDataLoader
+) -> tuple[float, float]:
+    total_loss = 0.
+    total_perplexity = 0.
+    with torch.no_grad():
+        for x, y in tqdm(eval_dataset, desc="Evaluating model"):
+            y_pred = model(x)
+            total_batch_loss = perplexity(y_pred, y, to_exp=False)
+            total_loss += total_batch_loss[0]
+
+            total_batch_perplexity = perplexity(y_pred, y)
+            total_perplexity += total_batch_perplexity[0]
+
+    return total_loss, total_perplexity
+
+
 def main(
     config_path: str = "",
     device: str = "cpu",
@@ -95,15 +112,23 @@ def main(
         train_conf = yaml.safe_load(f)
 
     train_dataset_npy = np.load(train_conf["train_path"], mmap_mode="r")
-    eval_dataset_npy = np.load(train_conf["eval_path"], mmap_mode="r")
+    eval_dataset_npy = np.load(train_conf["eval_path"], mmap_mode="r")[:100]
     epochs = train_conf["epochs"]
     checkpoint_every = train_conf["checkpoint_every"]
+    eval_every = train_conf["eval_every"]
 
     train_dataset = LLMDataset(train_dataset_npy)
     eval_dataset = LLMDataset(eval_dataset_npy)
 
     train_data_loader = LLMDataLoader(
         train_dataset,
+        train_conf["transformer"]["context_length"],
+        train_conf["batch_size"],
+        device,
+        train_conf["shuffle"],
+    )
+    eval_data_loader = LLMDataLoader(
+        eval_dataset,
         train_conf["transformer"]["context_length"],
         train_conf["batch_size"],
         device,
@@ -165,6 +190,16 @@ def main(
             loss.backward()
             optimizer.step()
             global_iter += 1
+
+            if global_iter and global_iter % eval_every == 0:
+                print("Evaluating model")
+                print(f"Training loss: {loss[0]}")
+                eval_loss, eval_perplexity = compute_val_loss(
+                    transformer_lm,
+                    eval_data_loader,
+                )
+                print(f"Validation loss: {eval_loss}")
+                print(f"Validation perplexity: {eval_perplexity}")
 
             if global_iter and global_iter % checkpoint_every == 0:
                 checkpoint_name = f"checkpoint_{global_iter:06}.pth"

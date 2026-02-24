@@ -10,6 +10,7 @@ from cs336_basics.transformer.functional import ce_loss
 def perplexity(
     o: Float[Tensor, "... seq_len vocab_size"],
     y: Float[Int64,  "... seq_len"],
+    to_exp: bool = True,
 ) -> Float[Tensor, "1"]:
     l: Float[Tensor, "b ... seq_len"] = ce_loss(o, y, None)
 
@@ -19,10 +20,17 @@ def perplexity(
         "mean"
     )
 
-    perplexity_total = reduce(
-        perplexity_seq,
-        "b ... -> 1",
-        "sum"
-    )
+    if to_exp:
+        perplexity_total = reduce(
+            torch.exp(perplexity_seq),
+            "b ... -> 1",
+            "sum"
+        )
+    else:
+        perplexity_total = reduce(
+            perplexity_seq,
+            "b ... -> 1",
+            "sum"
+        )
 
     return perplexity_total
