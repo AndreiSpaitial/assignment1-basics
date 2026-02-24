@@ -1,4 +1,5 @@
 import os
+from functools import partial
 
 import numpy as np
 import typer
@@ -7,7 +8,7 @@ import yaml
 from tqdm import tqdm
 
 from cs336_basics.dataloader import LLMDataset, LLMDataLoader
-from cs336_basics.optimizer import AdamW
+from cs336_basics.optimizer import AdamW, cosine_annealing, gradient_clipping
 from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer import Transformer
 from cs336_basics.transformer.functional import ce_loss
@@ -87,8 +88,8 @@ def main(
     with open(config_path, "r") as f:
         train_conf = yaml.safe_load(f)
 
-    train_dataset_npy = np.load(train_conf["train_path"], mmap_mode="r")[:100]
-    eval_dataset_npy = np.load(train_conf["eval_path"], mmap_mode="r")[:100]
+    train_dataset_npy = np.load(train_conf["train_path"], mmap_mode="r")
+    eval_dataset_npy = np.load(train_conf["eval_path"], mmap_mode="r")
     epochs = train_conf["epochs"]
     checkpoint_every = train_conf["checkpoint_every"]
 
@@ -110,6 +111,20 @@ def main(
         transformer_lm.parameters(),
         **optimizer_args,
     )
+    lr_scheduler = None
+    lr_conf = train_conf.get("lr_conf")
+    if lr_conf is not None:
+        lr_scheduler = partial(
+            cosine_annealing,
+            lr_max=lr_conf["lr_max"],
+            lr_min=lr_conf["lr_min"],
+            t_W=lr_conf["t_W"],
+            t_C=lr_conf["t_C"]
+        )
+    optimizer.lr_scheduler = lr_scheduler
+    M = train_conf["gradient_clipping"]["M"]
+    gradient_clipper = partial(gradient_clipping, M=M)
+    optimizer.gradient_clipper = gradient_clipper
 
     global_iter = 0
     start_epoch = 0
@@ -152,6 +167,8 @@ def main(
                     checkpoint_path,
                     epoch
                 )
+            if global_iter > 120:
+                raise ValueError("Stawwwpp")
 
 
 
