@@ -40,7 +40,7 @@ def make_transformer_lm(
         special_tokens=tokenizer_conf["special_tokens"],
         num_processes=256,
         checkpoint_dir=tokenizer_conf["checkpoint_dir"],
-        vocab_size=32_000,
+        vocab_size=10_000,
     )
     bpe_tokenizer.load_checkpoint()
 
@@ -88,12 +88,13 @@ def make_optimizer(train_conf: dict) -> dict:
 
 
 def compute_val_loss(
-    model: Transformer, eval_dataset: LLMDataLoader
+    model: Transformer, eval_dataloader: LLMDataLoader
 ) -> tuple[float, float]:
     total_loss = 0.
     total_perplexity = 0.
+    eval_dataloader.set_for_epoch(0)
     with torch.no_grad():
-        for x, y in tqdm(eval_dataset, desc="Evaluating model"):
+        for x, y in tqdm(eval_dataloader, desc="Evaluating model"):
             y_pred = model(x)
             total_batch_loss = perplexity(y_pred, y, to_exp=False)
             total_loss += total_batch_loss[0]

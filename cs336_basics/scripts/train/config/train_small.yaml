@@ -1,9 +1,9 @@
 train_path: data/tokenized/tinystories_train.npy
 eval_path: data/tokenized/tinystories_valid.npy
 checkpoint_dir: cs336_basics/scripts/train/checkpoints/
-checkpoint_every: 50
+checkpoint_every: 500
 epochs: 1
-eval_every: 75
+eval_every: 750
 shuffle: True
 batch_size: 8
 
@@ -22,7 +22,7 @@ rope:
 transformer:
   d_model: 16
   num_heads: 2
-  context_length: 4
+  context_length: 16
   num_layers: 2
   d_ff: 32
 
