@@ -1,10 +1,7 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 
 import torch
-from torch import Tensor
 
-
-learning rate schedule and gradient clipping
 
 class AdamW(torch.optim.Optimizer):
     def __init__(
