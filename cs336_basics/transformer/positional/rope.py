@@ -12,7 +12,7 @@ class ROPE(nn.Module):
         theta: float,
         d_k: int,
         max_seq_len: int,
-        device=None,
+        device: torch.device | None = None,
     ):
         super(ROPE, self).__init__()
 
@@ -33,7 +33,7 @@ class ROPE(nn.Module):
                 block = torch.tensor([
                     [torch.cos(theta_ik), -torch.sin(theta_ik)],
                     [torch.sin(theta_ik), torch.cos(theta_ik)]
-                ])
+                ]).to(device)
 
                 R[i, k] = block
 

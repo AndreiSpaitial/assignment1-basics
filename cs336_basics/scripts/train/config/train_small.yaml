@@ -1,12 +1,14 @@
 train_path: data/tokenized/tinystories_train.npy
 eval_path: data/tokenized/tinystories_valid.npy
 checkpoint_dir: cs336_basics/scripts/train/checkpoints/
-checkpoint_every: 5
+checkpoint_every: 50
 epochs: 1
 eval_every: 5
 shuffle: True
 batch_size: 8
-M: 1
+
+gradient_clipping:
+  M: 1
 
 lr_conf:
   lr_max: 1.0

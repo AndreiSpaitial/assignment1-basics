@@ -1,6 +1,7 @@
 import os
 from functools import partial
 
+import torch
 import numpy as np
 import typer
 import yaml
@@ -30,7 +31,10 @@ def find_latest_checkpoint(checkpoint_dir: str) -> str | None:
     return checkpoint_path
 
 
-def make_transformer_lm(train_conf: dict) -> tuple[Transformer, BPETokenizer]:
+def make_transformer_lm(
+    train_conf: dict, device_str: str
+) -> tuple[Transformer, BPETokenizer]:
+    device = torch.device(device_str)
     tokenizer_conf = train_conf["tokenizer"]
     bpe_tokenizer = BPETokenizer(
         special_tokens=tokenizer_conf["special_tokens"],
@@ -53,6 +57,7 @@ def make_transformer_lm(train_conf: dict) -> tuple[Transformer, BPETokenizer]:
         train_conf["rope"]["theta"],
         d_model // num_heads,
         max_seq_len=context_length,
+        device=device,
     )
 
     return Transformer(
@@ -62,6 +67,7 @@ def make_transformer_lm(train_conf: dict) -> tuple[Transformer, BPETokenizer]:
         num_heads,
         d_ff,
         rope=rope,
+        device=device,
     ), bpe_tokenizer
 
 
@@ -104,7 +110,10 @@ def main(
         train_conf["shuffle"],
     )
 
-    transformer_lm, bpe_tokenizer = make_transformer_lm(train_conf)
+    transformer_lm, bpe_tokenizer = make_transformer_lm(
+        train_conf,
+        device,
+    )
     optimizer_args = make_optimizer(train_conf)
 
     optimizer = AdamW(
@@ -140,8 +149,9 @@ def main(
             optimizer,
             train_data_loader,
         )
-    print(len(train_data_loader))
-    epoch_iter = train_data_loader._i
+    print(f"{len(train_data_loader):=}")
+    epoch_iter = train_data_loader._i // train_data_loader.batch_size
+    print(f"Reloaded {epoch_iter:=}, {global_iter:=}")
     for epoch in range(start_epoch, epochs):
         for x, y in tqdm(
                 train_data_loader,
@@ -167,9 +177,6 @@ def main(
                     checkpoint_path,
                     epoch
                 )
-            if global_iter > 120:
-                raise ValueError("Stawwwpp")
-
 
 
 if __name__ == "__main__":

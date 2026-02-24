@@ -20,7 +20,7 @@ class AdamW(torch.optim.Optimizer):
         }
         super().__init__(params, defaults)
         self.lr_scheduler = None
-        self.gradient_clipping = None
+        self.gradient_clipper = None
 
     def step(self, closure: Callable | None = None):
         loss = None if closure is None else closure()
@@ -30,8 +30,8 @@ class AdamW(torch.optim.Optimizer):
             weight_decay = group["weight_decay"]
             eps = group["eps"]
 
-            if self.gradient_clipping:
-                self.gradient_clipping(group["params"])
+            if self.gradient_clipper:
+                self.gradient_clipper(group["params"])
             for p in group["params"]:
                 if p.grad is None:
                     continue
