@@ -6,6 +6,7 @@ import numpy as np
 import typer
 import yaml
 
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from cs336_basics.dataloader import LLMDataset, LLMDataLoader
@@ -14,7 +15,7 @@ from cs336_basics.tokenizer import BPETokenizer
 from cs336_basics.transformer import Transformer
 from cs336_basics.transformer.functional import ce_loss, perplexity
 from cs336_basics.transformer.positional import ROPE
-from cs336_basics.utils import save_checkpoint, load_checkpoint
+from cs336_basics.utils import save_checkpoint, load_checkpoint, decode_batch, model_output_to_text
 
 
 def find_latest_checkpoint(checkpoint_dir: str) -> str | None:
@@ -113,10 +114,12 @@ def main(
         train_conf = yaml.safe_load(f)
 
     train_dataset_npy = np.load(train_conf["train_path"], mmap_mode="r")
-    eval_dataset_npy = np.load(train_conf["eval_path"], mmap_mode="r")[:100]
+    eval_dataset_npy = np.load(train_conf["eval_path"], mmap_mode="r")[:2000]
     epochs = train_conf["epochs"]
     checkpoint_every = train_conf["checkpoint_every"]
     eval_every = train_conf["eval_every"]
+    max_steps = train_conf.get("max_steps")
+    writer = SummaryWriter('cs336_basics/scripts/train/runs/small_experiments/')
 
     train_dataset = LLMDataset(train_dataset_npy)
     eval_dataset = LLMDataset(eval_dataset_npy)
@@ -140,6 +143,10 @@ def main(
         train_conf,
         device,
     )
+
+    eval_batch, _ = eval_data_loader._get_batch()
+    eval_prompts = model_output_to_text(eval_batch, bpe_tokenizer)
+
     optimizer_args = make_optimizer(train_conf)
 
     optimizer = AdamW(
@@ -178,6 +185,8 @@ def main(
     print(f"{len(train_data_loader):=}")
     epoch_iter = train_data_loader._i // train_data_loader.batch_size
     print(f"Reloaded {epoch_iter:=}, {global_iter:=}")
+    running_loss = 0.
+
     for epoch in range(start_epoch, epochs):
         for x, y in tqdm(
                 train_data_loader,
@@ -188,19 +197,63 @@ def main(
             y_pred = transformer_lm(x)
             loss = ce_loss(y_pred, y)
 
+            running_loss += loss.item()
             loss.backward()
             optimizer.step()
+
+            current_lr = optimizer.param_groups[0]['lr']
+            writer.add_scalar(
+                "Hyperparameters/learning_rate",
+                current_lr,
+                global_iter,
+            )
             global_iter += 1
 
             if global_iter and global_iter % eval_every == 0:
                 print("Evaluating model")
-                print(f"Training loss: {loss[0]}")
+                print(f"Training loss: {running_loss / eval_every}")
+                writer.add_scalar(
+                    "Loss/train",
+                    running_loss / eval_every,
+                    global_iter,
+                )
                 eval_loss, eval_perplexity = compute_val_loss(
                     transformer_lm,
                     eval_data_loader,
                 )
+                writer.add_scalar(
+                    "Loss/eval",
+                    eval_loss,
+                    global_iter,
+                )
                 print(f"Validation loss: {eval_loss}")
                 print(f"Validation perplexity: {eval_perplexity}")
+                writer.add_scalar(
+                    "Perplexity/eval",
+                    eval_perplexity,
+                    global_iter,
+                )
+
+                print("Running eval set prompts")
+                eval_set_output = decode_batch(
+                    transformer_lm,
+                    eval_batch
+                )
+                eval_set_text = model_output_to_text(
+                    eval_set_output,
+                    bpe_tokenizer
+                )
+                print("Done running prompts")
+                for prompt_i, output in enumerate(eval_set_text):
+                    writer.add_text(f"Samples/Prompt_{prompt_i}",
+                                    f"""
+                                    Input: {eval_prompts[prompt_i]} \n
+                                    Output: {output} \n
+                                    """,
+                                    global_iter,
+                                    )
+
+                running_loss = 0.
 
             if global_iter and global_iter % checkpoint_every == 0:
                 checkpoint_name = f"checkpoint_{global_iter:06}.pth"
@@ -213,6 +266,8 @@ def main(
                     checkpoint_path,
                     epoch
                 )
+            if max_steps and global_iter > max_steps:
+                raise ValueError("stawwwwwp")
 
 
 if __name__ == "__main__":

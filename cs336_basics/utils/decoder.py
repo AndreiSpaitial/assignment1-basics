@@ -55,6 +55,18 @@ def decode_batch(
     return x
 
 
+def model_output_to_text(
+    o: Int64[Tensor, "b seq_len"],
+    tokenizer: BPETokenizer,
+) -> list[str]:
+    x = o.cpu().detach().numpy()
+    ret = []
+    for el in x:
+        ret.append(tokenizer.decode(el))
+
+    return ret
+
+
 def run_user_prompt(
     model: Transformer,
     tokenizer: BPETokenizer,
@@ -80,6 +92,4 @@ def run_user_prompt(
             break
         x, _ = pack([x, next_token], "b *")
 
-    token_ids = [int(el) for el in x[0].detach().numpy()]
-
-    return tokenizer.decode(token_ids)
+    return model_output_to_text(x, tokenizer)[0]

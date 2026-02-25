@@ -21,6 +21,7 @@ dependencies = [
     "ty>=0.0.1a16",
     "ipython>=9.10.0",
     "typer>=0.24.1",
+    "tensorboard>=2.20.0",
 ]
 
 [build-system]

@@ -3,7 +3,7 @@ from collections.abc import Iterator
 import numpy as np
 import torch
 from torch import Tensor
-from jaxtyping import Int16
+from jaxtyping import Int64
 
 from cs336_basics.dataloader import LLMDataset
 
@@ -30,8 +30,8 @@ class LLMDataLoader:
             self._indices = torch.arange(last_ind)
 
     def _get_batch(self) -> tuple[
-        Int16[Tensor, "b context_length"],
-        Int16[Tensor, "b context_length"]
+        Int64[Tensor, "b context_length"],
+        Int64[Tensor, "b context_length"]
     ]:
         x = []
         y = []
@@ -41,8 +41,6 @@ class LLMDataLoader:
             x_end = self._indices[i] + self.context_length
             x.append(self.llm_dataset[x_start:x_end])
             y.append(self.llm_dataset[(x_start+1):(x_end+1)])
-
-        self._i += self.batch_size
 
         x = np.array(x, dtype=np.int64)
         y = np.array(y, dtype=np.int64)
@@ -56,18 +54,19 @@ class LLMDataLoader:
 
     def __iter__(self) -> Iterator[
         tuple[
-            Int16[Tensor, "b context_length"],
-            Int16[Tensor, "b context_length"],
+            Int64[Tensor, "b context_length"],
+            Int64[Tensor, "b context_length"],
         ]
     ]:
         while (
             self._i + self.batch_size
         ) <= len(self._indices):
             yield self._get_batch()
+            self._i += self.batch_size
 
     def __next__(self) -> tuple[
-        Int16[Tensor, "b context_length"],
-        Int16[Tensor, "b context_length"],
+        Int64[Tensor, "b context_length"],
+        Int64[Tensor, "b context_length"],
     ]:
         return self._get_batch()
 

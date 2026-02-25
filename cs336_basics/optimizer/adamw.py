@@ -25,7 +25,6 @@ class AdamW(torch.optim.Optimizer):
     def step(self, closure: Callable | None = None):
         loss = None if closure is None else closure()
         for group in self.param_groups:
-            lr = group["lr"]
             beta_1, beta_2 = group["betas"]
             weight_decay = group["weight_decay"]
             eps = group["eps"]
@@ -45,10 +44,10 @@ class AdamW(torch.optim.Optimizer):
                 m = beta_1*m + (1-beta_1)*g
                 v = beta_2*v + (1-beta_2)*g**2
 
-                lr_adjusted = lr
                 if self.lr_scheduler is not None:
-                    lr_adjusted = self.lr_scheduler(t)
-                lr_t = lr_adjusted*(1-beta_2**t)**0.5/(1-beta_1**t)
+                    group["lr"] = self.lr_scheduler(t)
+                lr = group["lr"]
+                lr_t = lr*(1-beta_2**t)**0.5/(1-beta_1**t)
 
                 p.data -= lr_t*m/(v**0.5+eps)
                 p.data -= lr*weight_decay*p.data
