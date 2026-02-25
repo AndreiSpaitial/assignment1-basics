@@ -6,7 +6,7 @@ checkpoint_every: 1000
 epochs: 1
 eval_every: 1500
 shuffle: True
-batch_size: 256
+batch_size: 128
 max_steps: 10000
 
 gradient_clipping:
