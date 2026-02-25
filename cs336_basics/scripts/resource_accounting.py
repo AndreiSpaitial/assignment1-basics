@@ -1,3 +1,8 @@
+import argparse
+
+import yaml
+
+
 def account_resources(b, context_length, d_model, d_ff, num_heads, vocab_size, num_layers):
     def to_gb(x):
         return (x * 4) / (1024**3)
@@ -65,14 +70,33 @@ def account_resources(b, context_length, d_model, d_ff, num_heads, vocab_size, n
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--train-conf", type=str, help="Training config")
+    parser.add_argument("--vocab-size", type=int, help="Vocab size to compute")
+
+    args = parser.parse_args()
+    train_conf_path = args.train_conf
+    vocab_size = args.vocab_size
+    with open(train_conf_path) as f:
+        train_conf = yaml.safe_load(f)
+
+    b = train_conf["batch_size"]
+    transformer_conf = train_conf["transformer"]
+    d_model = transformer_conf["d_model"]
+    num_heads = transformer_conf["num_heads"]
+    context_length = transformer_conf["context_length"]
+    d_model = transformer_conf["d_model"]
+    num_layers = transformer_conf["num_layers"]
+    d_ff = transformer_conf["d_ff"]
+
     print(
         account_resources(
-            b=4,
-            context_length=1024,
-            d_model=1600,
-            d_ff=6400,
-            num_heads=25,
-            num_layers=48,
-            vocab_size=50257,
+            b=b,
+            context_length=context_length,
+            d_model=d_model,
+            d_ff=d_ff,
+            num_heads=num_heads,
+            num_layers=num_layers,
+            vocab_size=vocab_size,
         )
     )

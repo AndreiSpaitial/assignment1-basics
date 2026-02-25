@@ -119,7 +119,8 @@ def main(
     checkpoint_every = train_conf["checkpoint_every"]
     eval_every = train_conf["eval_every"]
     max_steps = train_conf.get("max_steps")
-    writer = SummaryWriter('cs336_basics/scripts/train/runs/small_experiments/')
+    experiment_name = train_conf.get("experiment_name", "small")
+    writer = SummaryWriter(f'cs336_basics/scripts/train/runs/{experiment_name}/')
 
     train_dataset = LLMDataset(train_dataset_npy)
     eval_dataset = LLMDataset(eval_dataset_npy)
