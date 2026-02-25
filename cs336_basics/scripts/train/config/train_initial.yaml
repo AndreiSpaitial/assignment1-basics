@@ -2,12 +2,12 @@ experiment_name: initial
 train_path: data/tokenized/tinystories_train.npy
 eval_path: data/tokenized/tinystories_valid.npy
 checkpoint_dir: cs336_basics/scripts/train/initial/checkpoints/
-checkpoint_every: 500
+checkpoint_every: 1000
 epochs: 1
-eval_every: 750
+eval_every: 1500
 shuffle: True
 batch_size: 256
-max_steps: 5000
+max_steps: 10000
 
 gradient_clipping:
   M: 1
@@ -15,8 +15,8 @@ gradient_clipping:
 lr_conf:
   lr_max: 1.0e-1
   lr_min: 1.0e-2
-  t_W: 250
-  t_C: 5000
+  t_W: 500
+  t_C: 10000
 
 rope:
   theta: 10000

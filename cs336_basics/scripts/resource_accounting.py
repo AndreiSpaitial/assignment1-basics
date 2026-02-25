@@ -7,15 +7,53 @@ def account_resources(b, context_length, d_model, d_ff, num_heads, vocab_size, n
     def to_gb(x):
         return (x * 4) / (1024**3)
 
-    transformer_block_p = (d_model) + (3 * d_model**2 + d_model**2) + (3 * d_model * d_ff)
-    transformer_block_o = 3 * ((d_model) + (3 * d_model**2 + d_model**2) + (3 * d_model * d_ff))
-    transformer_block_a = (b * context_length * d_model) + (3 * b * context_length * d_model + 2 * b * num_heads * context_length**2 + b * context_length * d_model) + (2 * b * context_length * d_ff + b * context_length * d_model)
+    transformer_block_p = (
+            2 * d_model  # RMSNorm params
+        ) + (
+            3 * d_model**2 +  # W_KQV projection
+            d_model**2  # W_O projection
+        ) + (
+            d_model * d_ff +  # W1
+            d_model * d_ff +  # W3
+            d_ff * d_model   # W2
+        )
+    transformer_block_o = 3 * transformer_block_p
+    transformer_block_a = (
+        b * context_length * d_model +  # input (needed for residual)
+        b * context_length * d_model  # RMSNorm1 activations
+    ) + (
+        b * context_length * d_model  # projection W_QKV activations
+        ) + (
+            3 * b * context_length * d_model +  # Q,K,V activations
+            b * num_heads * context_length**2 +  # Q.T @ K activations
+            b * num_heads * context_length**2 +  # softmax activations
+            b * context_length * d_model  # softmax(Q.T @ V) activations
+        ) + (
+            b * context_length * d_model  # W_O projections
+        ) + (
+            b * context_length * d_model  # RMSNorm2 activations
+        ) + (
+            b * context_length * d_ff +  # W1 activations
+            b * context_length * d_ff +  # W3 activations
+            b * context_length * d_ff +  # Swish activations
+            b * context_length * d_model  # W2 activations
+        )
 
+    total_p = (
+        num_layers * transformer_block_p +
+        d_model * vocab_size
+    )
     total = (
-        num_layers * (transformer_block_p + transformer_block_o + transformer_block_a) +
-        (d_model + 3 * d_model + b * context_length * vocab_size) +
-        (d_model * vocab_size + 3 * d_model * vocab_size + b * context_length * vocab_size) +
-        (b * context_length)
+        (
+            4 * vocab_size * d_model +  # embeddings params + optimizer states
+            b * context_length * d_model) +  # input sequence activations
+            num_layers * (
+                transformer_block_p + transformer_block_o + transformer_block_a
+            ) +
+        (
+            4 * d_model * vocab_size +  # output projections params and optimizer states
+            2 * b * context_length * vocab_size) +  # Output projection activations and their exp
+            (2 * b * context_length)  # CE loss activations
     )
 
     return f"""
@@ -28,7 +66,7 @@ def account_resources(b, context_length, d_model, d_ff, num_heads, vocab_size, n
         – RMSNorm(s)
           p: {d_model=:_} ({to_gb(d_model):.4f} GiB)
           o: {3 * d_model=:_} ({to_gb(3 * d_model):.4f} GiB)
-          a: {b * context_length * d_model=:_} ({to_gb(b * context_length * d_model):.4f} GiB)
+          a: {2 * b * context_length * d_model=:_} ({2 * to_gb(b * context_length * d_model):.4f} GiB)
 
         – Multi-head self-attention sublayer: QKV projections, Q⊤K matrix multiply, softmax, 
           weighted sum of values, output projection.
@@ -41,6 +79,7 @@ def account_resources(b, context_length, d_model, d_ff, num_heads, vocab_size, n
           a:
             Q, K, V: {3 * b * context_length * d_model=:_} ({to_gb(3 * b * context_length * d_model):.4f} GiB)
             (Q.T @ K), softmax: {2 * b * num_heads * context_length * context_length=:_} ({to_gb(2 * b * num_heads * context_length * context_length):.4f} GiB)
+            softmax(Q.T @ K) @ V: {b * context_length * d_model=:_} ({to_gb(b * context_length * d_model)} GiB)
             V @ W_O: {b * context_length * d_model=:_} ({to_gb(b * context_length * d_model):.4f} GiB)
 
         – Position-wise feed-forward: W1 matrix multiply, SiLU, W2 matrix multiply
@@ -62,9 +101,10 @@ def account_resources(b, context_length, d_model, d_ff, num_heads, vocab_size, n
     • output embedding:
       g: {d_model * vocab_size=:_} ({to_gb(d_model * vocab_size):.4f} GiB)
       o: {3 * d_model * vocab_size=:_} ({to_gb(3 * d_model * vocab_size):.4f} GiB)
-      a: {b * context_length * vocab_size=:_} ({to_gb(b * context_length * vocab_size):.4f} GiB)
+      a: {2 * b * context_length * vocab_size=:_} ({to_gb(b * context_length * vocab_size):.4f} GiB)
     • cross-entropy on logits:
-      a: {b * context_length=:_} ({to_gb(b * context_length):.4f} GiB)
+      a: {b * context_length=:_} ({2* to_gb(b * context_length):.4f} GiB)
+    TOTAL params: {total_p:_} ({to_gb(total_p):.4f} GiB)
     TOTAL: {total:_} ({to_gb(total):.4f} GiB)
     """
 

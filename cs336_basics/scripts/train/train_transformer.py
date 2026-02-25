@@ -17,6 +17,8 @@ from cs336_basics.transformer.functional import ce_loss, perplexity
 from cs336_basics.transformer.positional import ROPE
 from cs336_basics.utils import save_checkpoint, load_checkpoint, decode_batch, model_output_to_text
 
+from torch.profiler import profile, record_function, ProfilerActivity
+
 
 def find_latest_checkpoint(checkpoint_dir: str) -> str | None:
     with os.scandir(checkpoint_dir) as entries:
@@ -192,9 +194,9 @@ def main(
         for x, y in tqdm(
                 train_data_loader,
                 initial=epoch_iter,
+                total=max_steps or len(train_data_loader)
         ):
             optimizer.zero_grad()
-
             y_pred = transformer_lm(x)
             loss = ce_loss(y_pred, y)
 
@@ -268,7 +270,10 @@ def main(
                     epoch
                 )
             if max_steps and global_iter > max_steps:
-                raise ValueError("stawwwwwp")
+                break
+
+        if max_steps and global_iter > max_steps:
+            break
 
 
 if __name__ == "__main__":
