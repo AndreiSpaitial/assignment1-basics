@@ -148,6 +148,8 @@ def main(
     )
 
     eval_batch, _ = eval_data_loader._get_batch()
+    eval_batch = eval_batch[:, :128]
+
     eval_prompts = model_output_to_text(eval_batch, bpe_tokenizer)
 
     optimizer_args = make_optimizer(train_conf)
@@ -213,6 +215,7 @@ def main(
             global_iter += 1
 
             if global_iter and global_iter % eval_every == 0:
+                transformer_lm.eval()
                 print("Evaluating model")
                 print(f"Training loss: {running_loss / eval_every}")
                 writer.add_scalar(
@@ -238,14 +241,16 @@ def main(
                 )
 
                 print("Running eval set prompts")
-                eval_set_output = decode_batch(
-                    transformer_lm,
-                    eval_batch
-                )
-                eval_set_text = model_output_to_text(
-                    eval_set_output,
-                    bpe_tokenizer
-                )
+                with torch.no_grad():
+                    eval_set_output = decode_batch(
+                        transformer_lm,
+                        eval_batch
+                    )
+                    eval_set_text = model_output_to_text(
+                        eval_set_output,
+                        bpe_tokenizer
+                    )
+
                 print("Done running prompts")
                 for prompt_i, output in enumerate(eval_set_text):
                     writer.add_text(f"Samples/Prompt_{prompt_i}",
@@ -257,6 +262,8 @@ def main(
                                     )
 
                 running_loss = 0.
+                transformer_lm.train()
+                torch.mps.empty_cache()
 
             if global_iter and global_iter % checkpoint_every == 0:
                 checkpoint_name = f"checkpoint_{global_iter:06}.pth"
