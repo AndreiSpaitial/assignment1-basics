@@ -3,6 +3,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
+from cs336_basics.dataloader import LLMDataset, LLMDataLoader
+
 from .adapters import get_adamw_cls, run_load_checkpoint, run_save_checkpoint
 
 
@@ -60,6 +64,23 @@ def test_checkpointing(tmp_path):
     d_output = 10
     num_iters = 10
 
+    dataset = np.arange(0, 1000)
+    context_length = 7
+    batch_size = 32
+
+    llm_dataset = LLMDataset(
+        dataset=dataset,
+    )
+    dataloader = LLMDataLoader(
+        dataset=llm_dataset,
+        batch_size=batch_size,
+        context_length=context_length,
+        device="cpu",
+        shuffle=True,
+    )
+
+    expected_indices = dataloader._indices
+
     model = _TestNet(d_input=d_input, d_output=d_output)
     optimizer = get_adamw_cls()(
         model.parameters(),
@@ -71,6 +92,7 @@ def test_checkpointing(tmp_path):
     # Use 1000 optimization steps for testing
     it = 0
     for _ in range(num_iters):
+        _, _ = next(dataloader)
         optimizer.zero_grad()
         x = torch.rand(d_input)
         y = torch.rand(d_output)
@@ -80,11 +102,14 @@ def test_checkpointing(tmp_path):
         optimizer.step()
         it += 1
 
+    expected_i = dataloader._i
+
     serialization_path = tmp_path / "checkpoint.pt"
     # Save the model
     run_save_checkpoint(
         model,
         optimizer,
+        dataloader,
         iteration=it,
         out=serialization_path,
     )
@@ -98,7 +123,20 @@ def test_checkpointing(tmp_path):
         betas=(0.9, 0.999),
         eps=1e-8,
     )
-    loaded_iterations = run_load_checkpoint(src=serialization_path, model=new_model, optimizer=new_optimizer)
+    new_dataloader = LLMDataLoader(
+        dataset=llm_dataset,
+        batch_size=batch_size,
+        context_length=context_length,
+        device="cpu",
+        shuffle=True,
+    )
+
+    loaded_iterations = run_load_checkpoint(
+        src=serialization_path,
+        model=new_model,
+        optimizer=new_optimizer,
+        dataloader=new_dataloader,
+    )
     assert it == loaded_iterations
 
     # Compare the loaded model state with the original model state
@@ -119,3 +157,9 @@ def test_checkpointing(tmp_path):
         )
     # compare the optimizer state dicts
     assert are_optimizers_equal(original_optimizer_state, new_optimizer_state)
+
+    assert new_dataloader._i == expected_i
+    numpy.testing.assert_equal(
+        expected_indices.detach().numpy(),
+        new_dataloader._indices.detach().numpy(),
+    )

@@ -1,0 +1,37 @@
+train_path: data/tokenized/tinystories_train.npy
+eval_path: data/tokenized/tinystories_valid.npy
+checkpoint_dir: cs336_basics/scripts/train/small/checkpoints/
+checkpoint_every: 500
+epochs: 1
+eval_every: 750
+shuffle: True
+batch_size: 8
+max_steps: 2000
+
+gradient_clipping:
+  M: 1
+
+lr_conf:
+  lr_max: 1.0
+  lr_min: 1.0e-2
+  t_W: 10
+  t_C: 100
+
+rope:
+  theta: 0.7853981633974483 # pi/4
+
+transformer:
+  d_model: 16
+  num_heads: 2
+  context_length: 16
+  num_layers: 2
+  d_ff: 32
+
+tokenizer:
+  checkpoint_dir: cs336_basics/tokenizer/checkpoints/tinystories/
+  special_tokens: ["<|endoftext|>"]
+
+optimizer:
+  lr: 1.0e-1
+  weight_decay: 1.0e-2
+  betas: [0.9, 0.999]

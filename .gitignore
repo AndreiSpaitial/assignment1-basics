@@ -1,3 +1,7 @@
+# Data
+
+**/data/*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -161,3 +165,10 @@ cython_debug/
 
 .ruff_cache/
 *.zip
+.vscode/
+.python-version
+
+**/checkpoints/*
+**/runs/*
+
+**/.DS_Store
